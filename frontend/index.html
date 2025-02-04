@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OSINTool</title>
+</head>
+<body>
+  <h1>OSINTool</h1>
+  <button id="get-tasks">Get Tasks</button>
+  <button id="create-task">Create Task</button>
+  <ul id="task-list"></ul>
+
+  <script>
+    document.getElementById('get-tasks').addEventListener('click', async () => {
+      const tasks = await window.api.getTasks()
+      const taskList = document.getElementById('task-list')
+      taskList.innerHTML = ''
+      tasks.forEach(task => {
+        const li = document.createElement('li')
+        li.textContent = `${task.id}: ${task.title} - ${task.description}`
+        taskList.appendChild(li)
+      })
+    })
+
+    document.getElementById('create-task').addEventListener('click', async () => {
+      const task = {
+        title: 'New Task',
+        description: 'This is a new task'
+      }
+      const newTask = await window.api.createTask(task)
+      console.log('New task created:', newTask)
+    })
+  </script>
+</body>
+</html>
