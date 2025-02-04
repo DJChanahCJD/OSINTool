@@ -1,36 +1,219 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OSINTool</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务管理器</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .task-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .form-row {
+            margin-bottom: 15px;
+        }
+        .dynamic-row {
+            margin-bottom: 10px;
+        }
+        .action-buttons {
+            margin-top: 20px;
+            text-align: right;
+        }
+    </style>
 </head>
 <body>
-  <h1>OSINTool</h1>
-  <button id="get-tasks">Get Tasks</button>
-  <button id="create-task">Create Task</button>
-  <ul id="task-list"></ul>
+    <div id="app" class="container">
+        <div class="task-header">
+            <el-input v-model="currentTask.title" placeholder="任务名称" style="width: 200px;"></el-input>
+            <el-select v-model="currentTaskId" filterable placeholder="选择任务" @change="loadTask" style="width: 200px;">
+                <el-option
+                    v-for="task in tasks"
+                    :key="task.id"
+                    :label="task.title"
+                    :value="task.id">
+                </el-option>
+            </el-select>
+            <el-button type="primary" :icon="currentTask.isActive ? 'el-icon-video-pause' : 'el-icon-video-play'" @click="toggleTaskStatus">
+                {{ currentTask.isActive ? '暂停' : '启用' }}
+            </el-button>
+        </div>
 
-  <script>
-    document.getElementById('get-tasks').addEventListener('click', async () => {
-      const tasks = await window.api.getTasks()
-      const taskList = document.getElementById('task-list')
-      taskList.innerHTML = ''
-      tasks.forEach(task => {
-        const li = document.createElement('li')
-        li.textContent = `${task.id}: ${task.title} - ${task.description}`
-        taskList.appendChild(li)
-      })
-    })
+        <el-form label-width="80px">
+            <el-form-item label="网址">
+                <el-input v-model="currentTask.url" placeholder="请输入网址"></el-input>
+            </el-form-item>
 
-    document.getElementById('create-task').addEventListener('click', async () => {
-      const task = {
-        title: 'New Task',
-        description: 'This is a new task'
-      }
-      const newTask = await window.api.createTask(task)
-      console.log('New task created:', newTask)
-    })
-  </script>
+            <el-form-item label="定时周期">
+                <el-input v-model="currentTask.schedule" placeholder="请输入定时周期"></el-input>
+            </el-form-item>
+
+            <el-form-item label="解析值">
+                <div v-for="(item, index) in currentTask.parseValues" :key="index" class="dynamic-row">
+                    <el-row :gutter="10">
+                        <el-col :span="6">
+                            <el-input v-model="item.key" placeholder="ip"></el-input>
+                        </el-col>
+                        <el-col :span="16">
+                            <el-input v-model="item.value" placeholder="请输入解析值"></el-input>
+                        </el-col>
+                        <el-col :span="2">
+                            <el-button type="danger" icon="el-icon-delete" circle @click="removeParseValue(index)"></el-button>
+                        </el-col>
+                    </el-row>
+                </div>
+                <el-button type="primary" icon="el-icon-plus" @click="addParseValue">添加解析值</el-button>
+            </el-form-item>
+
+            <el-form-item label="固定值">
+                <div v-for="(item, index) in currentTask.fixedValues" :key="index" class="dynamic-row">
+                    <el-row :gutter="10">
+                        <el-col :span="11">
+                            <el-input v-model="item.source" placeholder="请输入源值"></el-input>
+                        </el-col>
+                        <el-col :span="11">
+                            <el-input v-model="item.target" placeholder="请输入目标值"></el-input>
+                        </el-col>
+                        <el-col :span="2">
+                            <el-button type="danger" icon="el-icon-delete" circle @click="removeFixedValue(index)"></el-button>
+                        </el-col>
+                    </el-row>
+                </div>
+                <el-button type="primary" icon="el-icon-plus" @click="addFixedValue">添加固定值</el-button>
+            </el-form-item>
+        </el-form>
+
+        <div class="action-buttons">
+            <el-button type="primary" icon="el-icon-plus" @click="createNewTask">新增</el-button>
+            <el-button type="success" icon="el-icon-check" @click="saveTask">保存</el-button>
+            <el-button type="danger" icon="el-icon-delete" @click="deleteTask">删除</el-button>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                tasks: [],
+                currentTaskId: null,
+                currentTask: {
+                    id: null,
+                    title: '',
+                    url: '',
+                    schedule: '',
+                    parseValues: [],
+                    fixedValues: [],
+                    isActive: false
+                }
+            },
+            methods: {
+                loadTasks() {
+                    const savedTasks = localStorage.getItem('tasks');
+                    if (savedTasks) {
+                        this.tasks = JSON.parse(savedTasks);
+                        if (this.tasks.length > 0) {
+                            this.currentTaskId = this.tasks[0].id;
+                            this.loadTask(this.currentTaskId);
+                        }
+                    }
+                },
+                loadTask(taskId) {
+                    const task = this.tasks.find(t => t.id === taskId);
+                    if (task) {
+                        this.currentTask = JSON.parse(JSON.stringify(task));
+                    }
+                },
+                createNewTask() {
+                    const newTask = {
+                        id: Date.now(),
+                        title: `新任务${this.tasks.length + 1}`,
+                        url: '',
+                        schedule: '',
+                        parseValues: [],
+                        fixedValues: [],
+                        isActive: false
+                    };
+                    this.tasks.push(newTask);
+                    this.currentTaskId = newTask.id;
+                    this.loadTask(newTask.id);
+                },
+                saveTask() {
+                    const index = this.tasks.findIndex(t => t.id === this.currentTask.id);
+                    if (index !== -1) {
+                        this.$set(this.tasks, index, JSON.parse(JSON.stringify(this.currentTask)));
+                        localStorage.setItem('tasks', JSON.stringify(this.tasks));
+                        this.$message.success('保存成功');
+                    }
+                },
+                deleteTask() {
+                    this.$confirm('确认删除该任务吗？', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        this.tasks = this.tasks.filter(t => t.id !== this.currentTask.id);
+                        localStorage.setItem('tasks', JSON.stringify(this.tasks));
+                        if (this.tasks.length > 0) {
+                            this.currentTaskId = this.tasks[0].id;
+                            this.loadTask(this.currentTaskId);
+                        } else {
+                            this.currentTask = {
+                                id: null,
+                                title: '',
+                                url: '',
+                                schedule: '',
+                                parseValues: [],
+                                fixedValues: [],
+                                isActive: false
+                            };
+                        }
+                        this.$message.success('删除成功');
+                    }).catch(() => {});
+                },
+                addParseValue() {
+                    this.currentTask.parseValues.push({ key: '', value: '' });
+                },
+                removeParseValue(index) {
+                    this.currentTask.parseValues.splice(index, 1);
+                },
+                addFixedValue() {
+                    this.currentTask.fixedValues.push({ source: '', target: '' });
+                },
+                removeFixedValue(index) {
+                    this.currentTask.fixedValues.splice(index, 1);
+                },
+                toggleTaskStatus() {
+                    this.currentTask.isActive = !this.currentTask.isActive;
+                    this.saveTask();
+                }
+            },
+            mounted() {
+                this.loadTasks();
+            }
+        });
+    </script>
 </body>
 </html>
