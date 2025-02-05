@@ -219,11 +219,14 @@ def run_task(task_id):
             bool(task['ignore_comment'])
         )
 
+        print(f'comment: {comment} ？？？')
         result = []
         parse_rules = json.loads(task['parse_values'])
         fixed_rules = json.loads(task['fixed_values'])
         print(f'{parse_rules}')
         print(f'{fixed_rules}')
+
+        memo = {}
 
         for row in table:
             temp = {}
@@ -231,10 +234,12 @@ def run_task(task_id):
                 value = None
                 if rule['parseType'] == 'column':
                     value = row[rule['index']]
-                elif rule['parseType'] == 'keyword':
+                elif rule['parseType'] == 'comment':
                     # todo完善: 解析注释中的关键词
-                    value = parse_keywords(comment, rule['keyword'])
-                    console.log(f'keyword: {value}')
+                    if rule['keyword'] not in memo:
+                        memo[rule['keyword']] = parse_keywords(comment, rule['keyword'])
+                    value = memo[rule['keyword']]
+                    # print(f'keyword: {value}')
                 elif rule['parseType'] == 'other':
                     # todo:
                     pass
