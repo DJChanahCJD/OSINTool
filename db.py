@@ -11,10 +11,11 @@ class Task(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     url = Column(String, nullable=False)
-    schedule_type = Column(String, nullable=False)  # 'fixed' 或 'manual'
+    schedule_type = Column(String, nullable=False)  # 'fixed' 或 'random'
     days = Column(Integer)
     exec_time = Column(String)
     schedule = Column(String)
+    interval = Column(Integer)
     data_format = Column(String, nullable=False)
     ignore_comment = Column(Boolean, default=False)
     parse_values = Column(JSON)

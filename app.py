@@ -7,6 +7,7 @@ import os
 from utils.parser_factory import ParserFactory
 from utils.keyword_parser import parse_keywords
 
+# todo: 实现定时任务（开机自启+taskschedule？）
 app = Flask(__name__)
 CORS(app)  # 启用跨域支持
 
@@ -27,6 +28,7 @@ def init_db():
             days INTEGER,
             exec_time TEXT,
             schedule TEXT,
+            interval INTEGER,
             data_format TEXT NOT NULL,
             ignore_comment INTEGER DEFAULT 0,
             parse_values TEXT,
@@ -48,6 +50,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
     conn = get_db()
@@ -64,6 +67,7 @@ def get_tasks():
         'days': task['days'],
         'execTime': task['exec_time'],
         'schedule': task['schedule'],
+        'interval': task['interval'],
         'dataFormat': task['data_format'],
         'ignoreComment': bool(task['ignore_comment']),
         'parseValues': json.loads(task['parse_values'] or '[]'),
@@ -72,6 +76,43 @@ def get_tasks():
         'createTime': task['create_time'],
         'lastRunTime': task['last_run_time']
     } for task in tasks])
+
+@app.route('/api/tasks', methods=['POST'])
+def create_task():
+    data = request.json
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # 使用时间戳作为ID
+    current_timestamp = int(datetime.now().timestamp() * 1000)  # 毫秒级时间戳
+
+    cursor.execute('''
+        INSERT INTO tasks (
+            id, title, url, schedule_type, days, exec_time,
+            schedule, interval, data_format, ignore_comment, parse_values,
+            fixed_values, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        current_timestamp,  # 使用时间戳作为ID
+        data['title'],
+        data['url'],
+        data['scheduleType'],
+        data.get('days'),
+        data.get('execTime'),
+        data.get('schedule'),
+        data.get('interval'),
+        data['dataFormat'],
+        int(data.get('ignoreComment', False)),
+        json.dumps(data.get('parseValues', [])),
+        json.dumps(data.get('fixedValues', [])),
+        int(data.get('isActive', False))
+    ))
+
+    task_id = current_timestamp  # 使用生成的时间戳
+    conn.commit()
+    conn.close()
+
+    return jsonify({'id': task_id}), 201
 
 @app.route('/api/tasks/<int:task_id>', methods=['GET'])
 def get_task(task_id):
@@ -92,6 +133,7 @@ def get_task(task_id):
         'days': task['days'],
         'execTime': task['exec_time'],
         'schedule': task['schedule'],
+        'interval': task['interval'],
         'dataFormat': task['data_format'],
         'ignoreComment': bool(task['ignore_comment']),
         'parseValues': json.loads(task['parse_values'] or '[]'),
@@ -100,42 +142,6 @@ def get_task(task_id):
         'createTime': task['create_time'],
         'lastRunTime': task['last_run_time']
     })
-
-@app.route('/api/tasks', methods=['POST'])
-def create_task():
-    data = request.json
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # 使用时间戳作为ID
-    current_timestamp = int(datetime.now().timestamp() * 1000)  # 毫秒级时间戳
-
-    cursor.execute('''
-        INSERT INTO tasks (
-            id, title, url, schedule_type, days, exec_time,
-            schedule, data_format, ignore_comment, parse_values,
-            fixed_values, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        current_timestamp,  # 使用时间戳作为ID
-        data['title'],
-        data['url'],
-        data['scheduleType'],
-        data.get('days'),
-        data.get('execTime'),
-        data.get('schedule'),
-        data['dataFormat'],
-        int(data.get('ignoreComment', False)),
-        json.dumps(data.get('parseValues', [])),
-        json.dumps(data.get('fixedValues', [])),
-        int(data.get('isActive', False))
-    ))
-
-    task_id = current_timestamp  # 使用生成的时间戳
-    conn.commit()
-    conn.close()
-
-    return jsonify({'id': task_id}), 201
 
 @app.route('/api/tasks/<int:task_id>', methods=['PUT'])
 def update_task(task_id):
@@ -146,7 +152,7 @@ def update_task(task_id):
     cursor.execute('''
         UPDATE tasks SET
             title = ?, url = ?, schedule_type = ?, days = ?,
-            exec_time = ?, schedule = ?, data_format = ?,
+            exec_time = ?, schedule = ?, data_format = ?, interval = ?,
             ignore_comment = ?, parse_values = ?, fixed_values = ?,
             is_active = ?
         WHERE id = ?
@@ -158,6 +164,7 @@ def update_task(task_id):
         data.get('execTime'),
         data.get('schedule'),
         data['dataFormat'],
+        data.get('interval'),
         int(data.get('ignoreComment', False)),
         json.dumps(data.get('parseValues', [])),
         json.dumps(data.get('fixedValues', [])),
@@ -219,15 +226,17 @@ def run_task(task_id):
             bool(task['ignore_comment'])
         )
 
-        print(f'comment: {comment} ？？？')
         result = []
         parse_rules = json.loads(task['parse_values'])
         fixed_rules = json.loads(task['fixed_values'])
-        print(f'{parse_rules}')
-        print(f'{fixed_rules}')
+        print(f'=======================')
+        print(f'comment: {comment}')
+        print(f'parse_rules: {parse_rules}')
+        print(f'fixed_rules: {fixed_rules}')
+        print(f'=======================')
 
         memo = {}
-
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         for row in table:
             temp = {}
             for rule in parse_rules:
@@ -241,8 +250,9 @@ def run_task(task_id):
                     value = memo[rule['keyword']]
                     # print(f'keyword: {value}')
                 elif rule['parseType'] == 'other':
-                    # todo:
-                    pass
+                    if rule['keyword'] == 'currentTime':
+                        value = current_time
+                    # print(f'other: {value}')
                 else:
                     continue
                 temp[rule['key']] = value
@@ -251,9 +261,11 @@ def run_task(task_id):
             result.append(temp)
 
         # 保存结果
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'task_{task_id}_{timestamp}.json'
-        filepath = os.path.join('data', 'results', filename)
+        output_dir = os.path.join('data', 'results', str(task_id))
+        os.makedirs(output_dir, exist_ok=True)
+        formatted_time = current_time.replace(' ', '_').replace(':', '.')
+        filename = f'{formatted_time}.json'
+        filepath = os.path.join(output_dir, filename)
 
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
