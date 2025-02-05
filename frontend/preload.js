@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('api', {
 
     // 执行任务
     runTask: (taskId) => {
+        taskId = Number(taskId)
         return fetch(`http://localhost:5000/api/tasks/${taskId}/run`, {
             method: 'POST'
         }).then(response => response.json())

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh">
+<!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,6 +19,7 @@
                 clearable>
             </el-input>
             <span style="font-size:12px; color: grey;">id: {{currentTask.id}}</span>
+            <!-- todo: 上次运行时间 -->
             <el-button
                 :type="currentTask.isActive ? 'success' : 'danger'"
                 :icon="currentTask.isActive ? 'el-icon-check' : 'el-icon-close'"
@@ -90,7 +92,7 @@
                     </el-col>
                     <el-col :span="4">
                         <!-- 是否忽略注释解析 -->
-                        <el-checkbox v-model="currentTask.ignoreComment">忽略注释</el-checkbox>
+                        <el-checkbox v-model="currentTask.ignoreComment">是否忽略注释</el-checkbox>
                     </el-col>
                 </el-row>
             </el-form-item>
@@ -103,22 +105,27 @@
                     </el-col>
                     <el-col :span="4">
                       <el-select v-model="item.parseType" placeholder="解析类型">
-                        <el-option label="列号" value="column"></el-option>
-                        <el-option label="注释" value="comment"></el-option>
+                        <el-option label="列索引（从0开始）" value="column"></el-option>
+                        <el-option label="注释关键词" value="comment"></el-option>
+                        <el-option label="其他" value="other"></el-option>
                       </el-select>
                     </el-col>
                     <el-col :span="8">
                       <el-input-number
                         v-if="item.parseType === 'column'"
-                        v-model="item.column"
-                        :min="1"
-                        placeholder="列号">
+                        v-model="item.index"
+                        :min="0"
+                        placeholder="列索引">
                       </el-input-number>
                       <el-input
-                        v-else
-                        v-model="item.value"
+                        v-else-if="item.parseType === 'comment'"
+                        v-model="item.keyword"
                         :placeholder="getParseValuePlaceholder(item.parseType)">
-                        </el-input>
+                      </el-input>
+                      <el-select
+                        v-else>
+                        <el-option label="当前时间" value="currentTime"></el-option>
+                      </el-select>
                     </el-col>
                     <el-col :span="2">
                       <el-button type="danger" icon="el-icon-delete" @click="removeParseValue(index)"></el-button>
@@ -145,12 +152,14 @@
                 <el-button type="primary" icon="el-icon-plus" @click="addFixedValue">添加固定值</el-button>
             </el-form-item>
         </el-form>
-        <!-- todo：添加一个输出列表按钮，点击显示当前任务的解析csv结果 -->
         <div class="action-buttons">
-            <el-button type="primary" @click="createNewTask">新增</el-button>
-            <el-button type="success" @click="saveTask">保存</el-button>
-            <el-button type="danger" @click="deleteTask">删除</el-button>
-            <el-button type="info" @click="getResult">查看解析结果</el-button>
+            <el-button type="warning" @click="runTask">立即运行</el-button>
+            <div style="float: right">
+                <el-button type="primary" @click="createNewTask">新增</el-button>
+                <el-button type="success" @click="saveTask">保存</el-button>
+                <el-button type="danger" @click="deleteTask">删除</el-button>
+                <el-button type="info" @click="getResult">查看解析结果</el-button>
+            </div>
         </div>
     </div>
 </body>
@@ -196,8 +205,18 @@
                       this.currentTask = task;
                   }
               } catch (error) {
-                  this.$message.error('任务加载失败');
+                  this.$message.error('加载失败');
               }
+          },
+          async runTask() {
+            try {
+                const response = await window.api.runTask(this.currentTask.id);
+                if (response.success) {
+                    this.$message.success('运行成功');
+                }
+            } catch (error) {
+                this.$message.error('运行失败：' + error);
+            }
           },
           createNewTask() {
               this.currentTask = {
@@ -229,7 +248,7 @@
                       type: 'info'
                   });
 
-                  // 这里可以添加实际的解析逻辑
+                  // todo: 这里可以添加实际的解析逻辑
                   await window.api.runTask(this.currentTask.id);
                   this.$message.success('解析完成');
               } catch (error) {
@@ -301,10 +320,10 @@
           },
           addParseValue() {
               this.currentTask.parseValues.push({
-                key: '',
-                value: '',
-                column: 1,
-                parseType: 'column'
+                parseType: 'column',  // 默认为列解析
+                key: '',        // 字段名
+                index: 0,        // 列索引
+                keyword: ''      // 注释关键词（用于注释解析）
               });
           },
           removeParseValue(index) {
@@ -332,13 +351,14 @@
           getParseValuePlaceholder(parseType) {
             switch(parseType) {
               case 'column':
-                return '列号';
+                return '列索引（从0开始）';
               case 'comment':
-                return '注释关键字';
+                return '注释关键词';
               default:
                 return '请输入解析值';
             }
           },
+          // todo: 间隔多少时间
           handleScheduleTypeChange(value) {
               // 切换到不定时
               if (value === 'manual') {

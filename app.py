@@ -4,6 +4,8 @@ import sqlite3
 import json
 from datetime import datetime
 import os
+from utils.parser_factory import ParserFactory
+from utils.keyword_parser import parse_keywords
 
 app = Flask(__name__)
 CORS(app)  # 启用跨域支持
@@ -195,17 +197,73 @@ def update_task_status(task_id):
 
 @app.route('/api/tasks/<int:task_id>/run', methods=['POST'])
 def run_task(task_id):
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        'UPDATE tasks SET last_run_time = CURRENT_TIMESTAMP WHERE id = ?',
-        (task_id,)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
 
-    # TODO: 实际的任务执行逻辑
-    return jsonify({'success': True})
+        # 获取任务信息
+        cursor.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
+        task = cursor.fetchone()
+
+        if not task:
+            return jsonify({'success': False, 'error': '任务不存在'}), 404
+
+        # 创建结果目录
+        results_dir = os.path.join('data', 'results')
+        os.makedirs(results_dir, exist_ok=True)
+
+        # 解析内容
+        parser = ParserFactory.get_parser(task['data_format'])
+        table, comment = parser.parse(
+            task['url'],
+            bool(task['ignore_comment'])
+        )
+
+        result = []
+        parse_rules = json.loads(task['parse_values'])
+        fixed_rules = json.loads(task['fixed_values'])
+        print(f'{parse_rules}')
+        print(f'{fixed_rules}')
+
+        for row in table:
+            temp = {}
+            for rule in parse_rules:
+                value = None
+                if rule['parseType'] == 'column':
+                    value = row[rule['index']]
+                elif rule['parseType'] == 'keyword':
+                    # todo完善: 解析注释中的关键词
+                    value = parse_keywords(comment, rule['keyword'])
+                    console.log(f'keyword: {value}')
+                elif rule['parseType'] == 'other':
+                    # todo:
+                    pass
+                else:
+                    continue
+                temp[rule['key']] = value
+            for rule in fixed_rules:
+                temp[rule['source']] = rule['target']
+            result.append(temp)
+
+        # 保存结果
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'task_{task_id}_{timestamp}.json'
+        filepath = os.path.join('data', 'results', filename)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+        return jsonify({
+            'success': True,
+            'task': {
+                'id': task['id'],
+                'lastRunTime': task['last_run_time'],
+                'resultFile': filename
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
