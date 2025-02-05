@@ -6,11 +6,17 @@ function createWindow () {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,     // 禁用 nodeIntegration
+      contextIsolation: true,     // 启用上下文隔离
+      enableRemoteModule: true    // 启用远程模块
     }
   })
 
   mainWindow.loadFile('index.html')
+
+  // 开发时打开开发者工具
+  // mainWindow.webContents.openDevTools()
 }
 
 app.whenReady().then(() => {
