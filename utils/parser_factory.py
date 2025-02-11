@@ -1,10 +1,12 @@
 from .parsers.html_parser import HTMLParser
 from .parsers.txt_parser import TXTParser
+from .parsers.csv_parser import CSVParser
 
 class ParserFactory:
     _parsers = {
         'html': HTMLParser,
-        'txt': TXTParser
+        'txt': TXTParser,
+        'csv': CSVParser
     }
 
     @classmethod

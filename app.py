@@ -230,6 +230,10 @@ def run_task(task_id):
         parse_rules = json.loads(task['parse_values'])
         fixed_rules = json.loads(task['fixed_values'])
         print(f'=======================')
+        print(f'正在运行任务: {task_id}')
+        print(f'table前5行:')
+        for row in table[:5]:
+            print(row)
         print(f'comment: {comment}')
         print(f'parse_rules: {parse_rules}')
         print(f'fixed_rules: {fixed_rules}')
@@ -244,7 +248,7 @@ def run_task(task_id):
                 if rule['parseType'] == 'column':
                     value = row[rule['index']]
                 elif rule['parseType'] == 'comment':
-                    # todo完善: 解析注释中的关键词
+                    # todo完善: 解析注释中的关键词（正则表达式实现）
                     if rule['keyword'] not in memo:
                         memo[rule['keyword']] = parse_keywords(comment, rule['keyword'])
                     value = memo[rule['keyword']]

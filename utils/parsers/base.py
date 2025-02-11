@@ -8,15 +8,17 @@ class BaseParser(ABC):
     def load_content(self, url):
         """加载URL内容"""
         response = requests.get(url)
+        response.raise_for_status()  # 检查请求是否成功
         self.content = response.text
         print(f"已加载URL: {url}")
         print(f"内容长度: {len(self.content)}")
-        # print(f"内容: {self.content}")
+        print(f"内容: {self.content}")
 
         return self.content
 
     """
-        输出: csv, 注释内容
+        输出: 表格, 注释内容
+            table, comment
     """
     @abstractmethod
     def parse(self, url, ignore_comment=False):
