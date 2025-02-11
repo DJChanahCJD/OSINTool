@@ -3972,15 +3972,15 @@
     "threaten _type": "44"
   },
   {
-    "domain": "BigDaddy",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "BigDaddy",
-    "threaten _type": "44"
-  },
-  {
     "domain": "Bigdaddy",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "BigDaddy",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "BigDaddy",
     "threaten _type": "44"
   },
   {
@@ -4516,11 +4516,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "brutus",
+    "domain": "Brutus",
     "threaten _type": "44"
   },
   {
-    "domain": "Brutus",
+    "domain": "brutus",
     "threaten _type": "44"
   },
   {
@@ -8308,11 +8308,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "Exit",
+    "domain": "exit",
     "threaten _type": "44"
   },
   {
-    "domain": "exit",
+    "domain": "Exit",
     "threaten _type": "44"
   },
   {
@@ -9448,11 +9448,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "freebeer",
+    "domain": "FreeBeer",
     "threaten _type": "44"
   },
   {
-    "domain": "FreeBeer",
+    "domain": "freebeer",
     "threaten _type": "44"
   },
   {
@@ -11564,11 +11564,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "iDiDnTeDiThEcOnFiG",
+    "domain": "ididnteditheconfig",
     "threaten _type": "44"
   },
   {
-    "domain": "ididnteditheconfig",
+    "domain": "iDiDnTeDiThEcOnFiG",
     "threaten _type": "44"
   },
   {
@@ -13872,11 +13872,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "luna",
+    "domain": "Luna",
     "threaten _type": "44"
   },
   {
-    "domain": "Luna",
+    "domain": "luna",
     "threaten _type": "44"
   },
   {
@@ -15416,11 +15416,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "myrelay1",
+    "domain": "myRelay1",
     "threaten _type": "44"
   },
   {
-    "domain": "myRelay1",
+    "domain": "myrelay1",
     "threaten _type": "44"
   },
   {
@@ -15440,11 +15440,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "MyTorRelay",
+    "domain": "myTorRelay",
     "threaten _type": "44"
   },
   {
-    "domain": "myTorRelay",
+    "domain": "MyTorRelay",
     "threaten _type": "44"
   },
   {
@@ -17476,7 +17476,7 @@
     "threaten _type": "44"
   },
   {
-    "domain": NaN,
+    "domain": "",
     "threaten _type": "44"
   },
   {
@@ -25132,11 +25132,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "slavaukraini",
+    "domain": "SLAVAUKRAINI",
     "threaten _type": "44"
   },
   {
-    "domain": "SLAVAUKRAINI",
+    "domain": "slavaukraini",
     "threaten _type": "44"
   },
   {
@@ -25888,11 +25888,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "styx",
+    "domain": "STYX",
     "threaten _type": "44"
   },
   {
-    "domain": "STYX",
+    "domain": "styx",
     "threaten _type": "44"
   },
   {
@@ -27856,15 +27856,15 @@
     "threaten _type": "44"
   },
   {
-    "domain": "TorRelay",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "TorRelay",
-    "threaten _type": "44"
-  },
-  {
     "domain": "torrelay",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "TorRelay",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "TorRelay",
     "threaten _type": "44"
   },
   {
@@ -28080,11 +28080,11 @@
     "threaten _type": "44"
   },
   {
-    "domain": "Tortuga",
+    "domain": "TORtuga",
     "threaten _type": "44"
   },
   {
-    "domain": "TORtuga",
+    "domain": "Tortuga",
     "threaten _type": "44"
   },
   {
@@ -28964,275 +28964,275 @@
     "threaten _type": "44"
   },
   {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
+    "domain": "Unnamed",
+    "threaten _type": "44"
+  },
+  {
     "domain": "unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
-    "threaten _type": "44"
-  },
-  {
-    "domain": "Unnamed",
     "threaten _type": "44"
   },
   {
