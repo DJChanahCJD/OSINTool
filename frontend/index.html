@@ -40,7 +40,7 @@
 
         <el-form label-width="80px">
             <el-form-item label="网址">
-                <el-input v-model="currentTask.url" placeholder="请输入网址"></el-input>
+                <el-input v-model="currentTask.url" placeholder="请输入网址或本地文件路径，如: http://example.com 或 file://path/to/file"></el-input>
             </el-form-item>
             </el-col>
             <el-form-item label="定时周期">
@@ -70,7 +70,7 @@
 
             <el-form-item label="数据格式">
                 <el-row :gutter="10">
-                    <el-col :span="8">
+                    <el-col :span="6">
                         <el-select v-model="currentTask.dataFormat" placeholder="请选择数据格式">
                             <el-option label="TXT" value="txt"></el-option>
                             <el-option label="HTML" value="html"></el-option>
@@ -79,16 +79,16 @@
                         </el-select>
                     </el-col>
                     <el-col v-if="currentTask.dataFormat === 'html'" :span="6">
-                        <!-- 表格类型 -->
                         <el-select v-model="currentTask.tableType" placeholder="请选择表格类型">
                             <el-option label="table" value="0"></el-option>
                             <el-option label="ol/ul/li" value="1"></el-option>
                             <el-option label="div" value="2"></el-option>
                         </el-select>
                     </el-col>
-                    <el-col :span="4">
-                        <!-- 是否忽略注释解析 -->
-                        <el-checkbox v-model="currentTask.ignoreComment">是否忽略注释</el-checkbox>
+                    <el-col :span="10">
+                        <span >从第 </span>
+                        <el-input-number v-model="currentTask.startRow" :min="0" controls-position="right" placeholder="从0开始"></el-input-number>
+                        <span> 行开始</span>
                     </el-col>
                 </el-row>
             </el-form-item>
@@ -145,7 +145,8 @@
             </el-form-item>
         </el-form>
         <div class="action-buttons">
-            <el-button type="warning" @click="runTask">立即运行</el-button>
+            <el-button type="warning" icon="el-icon-refresh" @click="runTask">运行</el-button>
+            <el-button type="info" icon="el-icon-search" @click="showPreview">预览</el-button>
             <div style="float: right">
                 <el-button type="primary" @click="createNewTask">新增</el-button>
                 <el-button type="success" @click="saveTask">保存</el-button>
@@ -153,6 +154,27 @@
                 <el-button type="info" @click="getResult">查看解析结果</el-button>
             </div>
         </div>
+
+        <!-- 表格解析结果对话框 -->
+        <el-dialog :visible.sync="dialogVisible" title="解析结果" width="80%">
+            <el-row>
+                <el-col :span="16">
+                    <span>Table</span>
+                    <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
+                        <!-- 自定义行列号 -->
+                        <el-table-column type="index" label="" :index="customRowIndex" width="60">
+                            <template slot-scope="scope"><span style="font-weight: bold; color: #909399">行{{ scope.$index }}</span></template>
+                        </el-table-column>
+                        <el-table-column v-for="(col, index) in tableColumns" :key="index" :label="'列' + (index)" :prop="index.toString()" :width="100">
+                        </el-table-column>
+                    </el-table>
+                </el-col>
+                <el-col :span="8">
+                    <span>Comments</span>
+                    <el-input type="textarea" v-model="parsedComments" rows="20" readonly style="width: 100%; max-height: 400px; overflow: auto;" placeholder="暂无数据"></el-input>
+                </el-col>
+            </el-row>
+        </el-dialog>
     </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
@@ -171,13 +193,17 @@
                 execTime: '',
                 schedule: '', // 最终存储的cron表达式
                 dataFormat: '',
-                ignoreComment: false, // 是否忽略注释解析
                 tableType: '0', // 0: table, 1: ol/ul/li, 2: div
                 interval: 1, // 间隔时间（分钟）
                 parseValues: [],
                 fixedValues: [],
-                isActive: false
-            }
+                isActive: false,
+                startRow: 0
+            },
+            dialogVisible: false,
+            parsedTable: [],
+            tableColumns: [],
+            parsedComments: '',
         },
         methods: {
             async loadTasks() {
@@ -196,6 +222,7 @@
                     const task = await window.api.getTask(taskId);
                     if (task) {
                         this.currentTask = task;
+                        localStorage.setItem('currentTaskId', JSON.stringify(taskId));
                     }
                 } catch (error) {
                     this.$message.error('加载失败');
@@ -229,13 +256,42 @@
                     execTime: '',
                     schedule: '',
                     dataFormat: 'txt', // 设置默认格式
-                    ignoreComment: false,
-                    tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                    //tableType: '0', // 0: table, 1: ol/ul/li, 2: div
                     interval: 1, // 间隔时间（分钟）
                     parseValues: [],
                     fixedValues: [],
-                    isActive: false
+                    isActive: false,
+                    startRow: 0
                 };
+            },
+            // 预览解析结果
+            async showPreview() {
+                if (!this.currentTask.id) {
+                    this.$message.warning('请先选择任务');
+                    return;
+                }
+
+                const loadingMessage = this.$message({
+                    message: `正在解析任务 ${this.currentTask.title} ...`,
+                    type: 'info',
+                    duration: 0,
+                    showClose: true
+                });
+                try {
+                    const response = await window.api.parseTask(this.currentTask.id);
+                    if (response.success) {
+                        this.parsedTable = response.table;
+                        this.parsedComments = response.comment;
+                        this.tableColumns = this.parsedTable[0].map((_, index) => ({ label: `列${index}`, prop: index.toString() }));
+                        this.dialogVisible = true;
+                    } else {
+                        this.$message.error('解析失败: ' + response.error);
+                    }
+                }catch (error) {
+                    this.$message.error('解析失败: ' + error.message);
+                } finally {
+                    loadingMessage.close();
+                }
             },
             async getResult() {
                 if (!this.currentTask.id) {
@@ -266,8 +322,8 @@
                         this.$message.warning('请输入任务名称');
                         return;
                     }
-                    if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url)) {
-                        this.$message.warning('请输入合法目标URL, 如: http://example.com');
+                    if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url) && !/file:\/\/.+/i.test(this.currentTask.url)) {
+                        this.$message.warning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
                         return;
                     }
                     if (!this.currentTask.dataFormat) {
@@ -388,9 +444,18 @@
                 } else {
                     this.currentTask.schedule = '';
                 }
+            },
+            // 自定义行列号
+            customRowIndex(index) {
+                return index;
             }
         },
         mounted() {
+            // 尝试从本地存储中加载当前任务ID
+            const storedTaskId = localStorage.getItem('currentTaskId');
+            if (storedTaskId) {
+                this.currentTask.id = JSON.parse(storedTaskId);
+            }
             this.loadTasks();
         }
     });

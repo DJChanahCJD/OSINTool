@@ -1,7 +1,7 @@
 from .base import BaseParser
 
 class TXTParser(BaseParser):
-    def parse(self, url, ignore_comment=False, table_type=0):
+    def parse(self, url, table_type=0):
         self.load_content(url)
         table = []
         comment = ''
@@ -13,8 +13,6 @@ class TXTParser(BaseParser):
                 continue
 
             if line.startswith('#'):    # 注释内容
-                if ignore_comment:
-                    continue
                 comment += line + '\n'
             else:   # 表格内容（获取完整表格，包括被注释的部分）
                 """
