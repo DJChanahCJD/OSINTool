@@ -40,7 +40,7 @@
 
         <el-form label-width="80px">
             <el-form-item label="网址">
-                <el-input v-model="currentTask.url" placeholder="请输入网址"></el-input>
+                <el-input v-model="currentTask.url" placeholder="请输入网址或本地文件路径，如: http://example.com 或 file://path/to/file"></el-input>
             </el-form-item>
             </el-col>
             <el-form-item label="定时周期">
@@ -70,7 +70,7 @@
 
             <el-form-item label="数据格式">
                 <el-row :gutter="10">
-                    <el-col :span="8">
+                    <el-col :span="6">
                         <el-select v-model="currentTask.dataFormat" placeholder="请选择数据格式">
                             <el-option label="TXT" value="txt"></el-option>
                             <el-option label="HTML" value="html"></el-option>
@@ -79,12 +79,14 @@
                         </el-select>
                     </el-col>
                     <el-col v-if="currentTask.dataFormat === 'html'" :span="6">
-                        <!-- 表格类型 -->
-                        <el-select v-model="currentTask.tableType" placeholder="请选择表格类型">
+                        <el-select v-model="currentTask.tableType" placeholder="请选择表格类型" :span="4">
                             <el-option label="table" value="0"></el-option>
                             <el-option label="ol/ul/li" value="1"></el-option>
                             <el-option label="div" value="2"></el-option>
                         </el-select>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-input-number v-model="currentTask.startRow" :min="0" controls-position="right" placeholder="从第(0-n)行开始"></el-input-number>
                     </el-col>
                     <el-col :span="4">
                         <!-- 是否忽略注释解析 -->
@@ -176,7 +178,8 @@
                 interval: 1, // 间隔时间（分钟）
                 parseValues: [],
                 fixedValues: [],
-                isActive: false
+                isActive: false,
+                startRow: 0
             }
         },
         methods: {
@@ -228,13 +231,14 @@
                     days: 1,
                     execTime: '',
                     schedule: '',
-                    dataFormat: 'txt', // 设置默认格式
+                    //dataFormat: 'txt', // 设置默认格式
                     ignoreComment: false,
-                    tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                    //tableType: '0', // 0: table, 1: ol/ul/li, 2: div
                     interval: 1, // 间隔时间（分钟）
                     parseValues: [],
                     fixedValues: [],
-                    isActive: false
+                    isActive: false,
+                    //startRow: 0
                 };
             },
             async getResult() {
@@ -266,8 +270,8 @@
                         this.$message.warning('请输入任务名称');
                         return;
                     }
-                    if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url)) {
-                        this.$message.warning('请输入合法目标URL, 如: http://example.com');
+                    if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url) && !/file:\/\/.+/i.test(this.currentTask.url)) {
+                        this.$message.warning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
                         return;
                     }
                     if (!this.currentTask.dataFormat) {

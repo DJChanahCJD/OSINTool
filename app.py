@@ -59,6 +59,29 @@ def update_task_status(task_id):
     tasks_table.update({'isActive': isActive}, Task.id == task_id)
     return jsonify({'success': True})
 
+# 在用户输入完整网址或更新数据格式后，解析表格，后面可以用全局变量存储table, comment，避免重复解析
+@app.route('/api/tasks/<string:task_id>/parse', methods=['POST'])
+def parse_task(task_id):
+    try:
+        Task = Query()
+        task = tasks_table.get(Task.id == task_id)
+        if not task:
+            return jsonify({'success': False, 'error': '任务不存在'}), 404
+
+        parser = ParserFactory.get_parser(task['dataFormat'])
+        table, comment = parser.parse(
+            task['url'],
+            bool(task['ignoreComment']),
+            int(task.get('tableType', 0))
+        )
+        return jsonify({
+            'success': True,
+            'table': table,
+            'comment': comment
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/tasks/<string:task_id>/run', methods=['POST'])
 def run_task(task_id):
     try:
@@ -69,6 +92,7 @@ def run_task(task_id):
 
         os.makedirs('data', exist_ok=True)
 
+        # todo: 用全局变量存储table, comment，避免重复解析
         parser = ParserFactory.get_parser(task['dataFormat'])
         table, comment = parser.parse(
             task['url'],
@@ -91,7 +115,8 @@ def run_task(task_id):
 
         memo = {}
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        for row in table:
+        startRow = task.get('startRow', 0)
+        for row in table[startRow:]:
             temp = {}
             for rule in parse_rules:
                 value = None
