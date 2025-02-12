@@ -52,6 +52,12 @@ contextBridge.exposeInMainWorld('api', {
         }).then(response => response.json())
     },
 
+    parseTask: (taskId) => {
+        return fetch(`http://localhost:5000/api/tasks/${taskId}/parse`, {
+            method: 'POST'
+        }).then(response => response.json())
+    },
+
     // 执行任务
     runTask: (taskId) => {
         return fetch(`http://localhost:5000/api/tasks/${taskId}/run`, {
