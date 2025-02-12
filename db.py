@@ -17,7 +17,8 @@ class Task(Base):
     schedule = Column(String)
     interval = Column(Integer)
     data_format = Column(String, nullable=False)
-    ignore_comment = Column(Boolean, default=False)
+    ignore_comment = Column(Boolean, default=False),
+    table_type = Column(Integer, default=0)
     parse_values = Column(JSON)
     fixed_values = Column(JSON)
     is_active = Column(Boolean, default=False)

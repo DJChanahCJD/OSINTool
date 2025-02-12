@@ -3,6 +3,8 @@
 <!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） -->
 <!-- todo: 任务配置支持批量json导入导出-->
 <!-- todo: 注释正则实现-->
+<!-- todo: 能够预览解析到的表格-->
+<!-- todo: 翻页等按钮通过XPath实现（XPath需用户自行在浏览器获取并输入）-->
 <!-- todo: run加载动画-->
 <head>
     <meta charset="UTF-8">
@@ -74,6 +76,14 @@
                             <el-option label="HTML" value="html"></el-option>
                             <el-option label="PHP" value="php"></el-option>
                             <el-option label="CSV" value="csv"></el-option>
+                        </el-select>
+                    </el-col>
+                    <el-col v-if="currentTask.dataFormat === 'html'" :span="6">
+                        <!-- 表格类型 -->
+                        <el-select v-model="currentTask.tableType" placeholder="请选择表格类型">
+                            <el-option label="table" value="0"></el-option>
+                            <el-option label="ol/ul/li" value="1"></el-option>
+                            <el-option label="div" value="2"></el-option>
                         </el-select>
                     </el-col>
                     <el-col :span="4">
@@ -163,6 +173,8 @@
                 schedule: '', // 最终存储的cron表达式
                 dataFormat: '',
                 ignoreComment: false, // 是否忽略注释解析
+                tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                interval: 1, // 间隔时间（分钟）
                 parseValues: [],
                 fixedValues: [],
                 isActive: false
@@ -211,6 +223,8 @@
                     schedule: '',
                     dataFormat: 'txt', // 设置默认格式
                     ignoreComment: false,
+                    tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                    interval: 1, // 间隔时间（分钟）
                     parseValues: [],
                     fixedValues: [],
                     isActive: false

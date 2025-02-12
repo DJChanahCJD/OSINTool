@@ -31,6 +31,7 @@ def init_db():
             interval INTEGER,
             data_format TEXT NOT NULL,
             ignore_comment INTEGER DEFAULT 0,
+            table_type INTEGER DEFAULT 0,
             parse_values TEXT,
             fixed_values TEXT,
             is_active INTEGER DEFAULT 0,
@@ -70,6 +71,7 @@ def get_tasks():
         'interval': task['interval'],
         'dataFormat': task['data_format'],
         'ignoreComment': bool(task['ignore_comment']),
+        'tableType': task.get('table_type', 0),
         'parseValues': json.loads(task['parse_values'] or '[]'),
         'fixedValues': json.loads(task['fixed_values'] or '[]'),
         'isActive': bool(task['is_active']),
@@ -89,7 +91,7 @@ def create_task():
     cursor.execute('''
         INSERT INTO tasks (
             id, title, url, schedule_type, days, exec_time,
-            schedule, interval, data_format, ignore_comment, parse_values,
+            schedule, interval, data_format, ignore_comment, table_type, parse_values,
             fixed_values, is_active
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
@@ -103,6 +105,7 @@ def create_task():
         data.get('interval'),
         data['dataFormat'],
         int(data.get('ignoreComment', False)),
+        int(data.get('tableType', 0)),
         json.dumps(data.get('parseValues', [])),
         json.dumps(data.get('fixedValues', [])),
         int(data.get('isActive', False))
@@ -136,6 +139,7 @@ def get_task(task_id):
         'interval': task['interval'],
         'dataFormat': task['data_format'],
         'ignoreComment': bool(task['ignore_comment']),
+        'tableType': task['table_type'],
         'parseValues': json.loads(task['parse_values'] or '[]'),
         'fixedValues': json.loads(task['fixed_values'] or '[]'),
         'isActive': bool(task['is_active']),
@@ -153,7 +157,7 @@ def update_task(task_id):
         UPDATE tasks SET
             title = ?, url = ?, schedule_type = ?, days = ?,
             exec_time = ?, schedule = ?, data_format = ?, interval = ?,
-            ignore_comment = ?, parse_values = ?, fixed_values = ?,
+            ignore_comment = ?, table_type = ?, parse_values = ?, fixed_values = ?,
             is_active = ?
         WHERE id = ?
     ''', (
@@ -166,6 +170,7 @@ def update_task(task_id):
         data['dataFormat'],
         data.get('interval'),
         int(data.get('ignoreComment', False)),
+        int(data.get('tableType', 0)),
         json.dumps(data.get('parseValues', [])),
         json.dumps(data.get('fixedValues', [])),
         int(data.get('isActive', False)),
@@ -223,7 +228,8 @@ def run_task(task_id):
         parser = ParserFactory.get_parser(task['data_format'])
         table, comment = parser.parse(
             task['url'],
-            bool(task['ignore_comment'])
+            bool(task['ignore_comment']),
+            int(task['table_type'])
         )
 
         result = []

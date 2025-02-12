@@ -1,35 +1,18 @@
 from bs4 import BeautifulSoup
+import bs4
 from .base import BaseParser
 
 class HTMLParser(BaseParser):
-    def parse(self, url, ignore_comment=False):
+    def parse(self, url, ignore_comment=False, table_type=0):
         self.load_content(url)
-        results = []
+        table = []
+        comment = ""
         soup = BeautifulSoup(self.content, 'html.parser')
 
-        for rule in parse_rules:
-            if rule['parseType'] == 'column':
-                # 处理表格列
-                tables = soup.find_all('table')
-                for table in tables:
-                    rows = table.find_all('tr')
-                    for row in rows:
-                        cells = row.find_all(['td', 'th'])
-                        if len(cells) > rule['index']:
-                            results.append({
-                                'key': rule['key'],
-                                'value': cells[rule['index']].get_text(strip=True)
-                            })
-
-            elif rule['parseType'] == 'comment':
-                # 处理注释内容
-                comments = soup.find_all(string=lambda text: isinstance(text, bs4.Comment))
-                for comment in comments:
-                    if rule['keyword'] in comment:
-                        value = comment.split(rule['keyword'])[-1].strip()
-                        results.append({
-                            'key': rule['key'],
-                            'value': value
-                        })
-
-        return results
+        # HTML解析方法（三种类型：表格、ul/ol/li、div） -> table_type = 0/1/2
+        # （类DFS，从底层文本和类添加列，
+        # 如果上层包含未添加的文本则添加，否则忽略）
+        # 对于相同的类名使用append，需要支持预览解析表格，
+        # 对于<a>标签，另外处理。（单独一列？）
+        # 仍然通过列数进行集成。
+        return table, comment
