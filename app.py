@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 import shortuuid
 from utils.parser_factory import ParserFactory
-from utils.keyword_parser import parse_keywords
+from utils.regex_matcher import parse_keywords, parse_first_keyword
 
 app = Flask(__name__)
 CORS(app)
@@ -59,7 +59,7 @@ def update_task_status(task_id):
     tasks_table.update({'isActive': isActive}, Task.id == task_id)
     return jsonify({'success': True})
 
-# 在用户更新数据格式后，解析表格，后面可以用全局变量存储table, comment，避免重复解析
+# 在用户更新数据格式后，解析表格
 @app.route('/api/tasks/<string:task_id>/parse', methods=['POST'])
 def parse_task(task_id):
     try:
@@ -69,14 +69,13 @@ def parse_task(task_id):
             return jsonify({'success': False, 'error': '任务不存在'}), 404
 
         parser = ParserFactory.get_parser(task['dataFormat'])
-        table, comment = parser.parse(
+        table = parser.parse(
             task['url'],
             int(task.get('tableType', 0))
         )
         return jsonify({
             'success': True,
             'table': table,
-            'comment': comment
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -91,12 +90,12 @@ def run_task(task_id):
 
         os.makedirs('data', exist_ok=True)
 
-        # todo: 用全局变量存储table, comment，避免重复解析
         parser = ParserFactory.get_parser(task['dataFormat'])
-        table, comment = parser.parse(
+        table = parser.parse(
             task['url'],
             int(task.get('tableType', 0))
         )
+        content = parser.content
 
         result = []
         parse_rules = task['parseValues']
@@ -106,7 +105,6 @@ def run_task(task_id):
         print(f'table前5行:')
         for row in table[:5]:
             print(row)
-        print(f'comment: {comment}')
         print(f'parse_rules: {parse_rules}')
         print(f'fixed_rules: {fixed_rules}')
         print(f'=======================')
@@ -120,10 +118,9 @@ def run_task(task_id):
                 value = None
                 if rule['parseType'] == 'column':
                     value = row[rule['index']]
-                elif rule['parseType'] == 'comment':
-                    # todo: 注释正则匹配
+                elif rule['parseType'] == 'regex':
                     if rule['keyword'] not in memo:
-                        memo[rule['keyword']] = parse_keywords(comment, rule['keyword'])
+                        memo[rule['keyword']] = parse_first_keyword(content, rule['keyword']) if rule['regexMode'] == 0 else parse_keywords(content, rule['keyword'])
                     value = memo[rule['keyword']]
                 elif rule['parseType'] == 'other':
                     if rule['keyword'] == 'currentTime':

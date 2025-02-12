@@ -6,8 +6,7 @@ class HTMLParser(BaseParser):
     def parse(self, url, table_type=0):
         self.load_content(url)
         table = []
-        comment = ""
-        soup = BeautifulSoup(self.content, 'html.parser')
+        soup = BeautifulSoup(self.content, 'lxml')
 
         # HTML解析方法（三种类型：表格、ul/ol/li、div） -> table_type = 0/1/2
         # （类DFS，从底层文本和类添加列，
@@ -16,6 +15,8 @@ class HTMLParser(BaseParser):
         # 靠类名也不行，
         # 对于<a>标签，另外处理。（单独一列？）
         # 仍然通过列数进行集成。
+
+        # 可以添加Xpath参数辅助解析？
 
         if table_type == 0:
             # 表格解析
@@ -26,4 +27,4 @@ class HTMLParser(BaseParser):
                     cols = row.find_all(['th', 'td'])
                     table.append([col.get_text(strip=True) for col in cols])
 
-        return table, comment
+        return table
