@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron ."
   },
-  "author": "Your Name",
+  "author": "djchanahcjd",
   "license": "MIT",
   "dependencies": {
     "electron": "^24.8.8",

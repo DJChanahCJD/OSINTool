@@ -21,7 +21,7 @@ class BaseParser(ABC):
             table, comment
     """
     @abstractmethod
-    def parse(self, url, ignore_comment=False):
+    def parse(self, url, ignore_comment=False, table_type=0):
         """解析内容
 
         Args:

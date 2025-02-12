@@ -1,7 +1,7 @@
 from .base import BaseParser
 
 class TXTParser(BaseParser):
-    def parse(self, url, ignore_comment=False):
+    def parse(self, url, ignore_comment=False, table_type=0):
         self.load_content(url)
         table = []
         comment = ''
