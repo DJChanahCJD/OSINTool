@@ -161,6 +161,10 @@
                 <el-col :span="16">
                     <span>Table</span>
                     <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
+                        <!-- 自定义行列号 -->
+                        <el-table-column type="index" label="" :index="customRowIndex" width="60">
+                            <template slot-scope="scope"><span style="font-weight: bold; color: #909399">行{{ scope.$index }}</span></template>
+                        </el-table-column>
                         <el-table-column v-for="(col, index) in tableColumns" :key="index" :label="'列' + (index)" :prop="index.toString()" :width="100">
                         </el-table-column>
                     </el-table>
@@ -267,6 +271,12 @@
                     return;
                 }
 
+                const loadingMessage = this.$message({
+                    message: `正在解析任务 ${this.currentTask.title} ...`,
+                    type: 'info',
+                    duration: 0,
+                    showClose: true
+                });
                 try {
                     const response = await window.api.parseTask(this.currentTask.id);
                     if (response.success) {
@@ -277,8 +287,10 @@
                     } else {
                         this.$message.error('解析失败: ' + response.error);
                     }
-                } catch (error) {
+                }catch (error) {
                     this.$message.error('解析失败: ' + error.message);
+                } finally {
+                    loadingMessage.close();
                 }
             },
             async getResult() {
@@ -432,6 +444,10 @@
                 } else {
                     this.currentTask.schedule = '';
                 }
+            },
+            // 自定义行列号
+            customRowIndex(index) {
+                return index;
             }
         },
         mounted() {
