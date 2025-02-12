@@ -24,7 +24,7 @@ class BaseParser(ABC):
             print(f"已加载URL: {url}")
 
     @abstractmethod
-    def parse(self, url, ignore_comment=False, table_type=0):
+    def parse(self, url, table_type=0):
         """
         输出: 表格, 注释内容
             table, comment

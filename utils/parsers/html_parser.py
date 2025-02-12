@@ -3,7 +3,7 @@ import bs4
 from .base import BaseParser
 
 class HTMLParser(BaseParser):
-    def parse(self, url, ignore_comment=False, table_type=0):
+    def parse(self, url, table_type=0):
         self.load_content(url)
         table = []
         comment = ""

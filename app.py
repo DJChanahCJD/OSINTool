@@ -59,7 +59,7 @@ def update_task_status(task_id):
     tasks_table.update({'isActive': isActive}, Task.id == task_id)
     return jsonify({'success': True})
 
-# 在用户输入完整网址或更新数据格式后，解析表格，后面可以用全局变量存储table, comment，避免重复解析
+# 在用户更新数据格式后，解析表格，后面可以用全局变量存储table, comment，避免重复解析
 @app.route('/api/tasks/<string:task_id>/parse', methods=['POST'])
 def parse_task(task_id):
     try:
@@ -71,7 +71,6 @@ def parse_task(task_id):
         parser = ParserFactory.get_parser(task['dataFormat'])
         table, comment = parser.parse(
             task['url'],
-            bool(task['ignoreComment']),
             int(task.get('tableType', 0))
         )
         return jsonify({
@@ -96,7 +95,6 @@ def run_task(task_id):
         parser = ParserFactory.get_parser(task['dataFormat'])
         table, comment = parser.parse(
             task['url'],
-            bool(task['ignoreComment']),
             int(task.get('tableType', 0))
         )
 
