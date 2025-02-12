@@ -13,7 +13,4 @@ class CSVParser(BaseParser):
         # 将 DataFrame 转换为二维数组，并处理空值
         table = df.fillna('').values.tolist()
 
-        # 将标题行作为注释内容
-        comment = df.columns.tolist()
-
-        return table, comment
+        return table
