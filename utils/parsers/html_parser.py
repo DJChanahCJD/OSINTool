@@ -27,4 +27,5 @@ class HTMLParser(BaseParser):
                     cols = row.find_all(['th', 'td'])
                     table.append([col.get_text(strip=True) for col in cols])
 
+        # todo: 如何处理多表问题？
         return table
