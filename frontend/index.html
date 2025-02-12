@@ -26,7 +26,7 @@
                 :icon="currentTask.isActive ? 'el-icon-check' : 'el-icon-close'" @click="toggleTaskStatus">
                 {{ currentTask.isActive ? '运行中' : '已停止' }}
             </el-button>
-            <el-select v-model="currentTaskId" filterable placeholder="选择任务" @change="loadTask" style="width: 200px;"
+            <el-select v-model="currentTask.id" filterable placeholder="选择任务" @change="loadTask" style="width: 200px;"
                 clearable>
                 <el-option v-for="task in tasks" :key="task.id" :label="task.title" :value="task.id">
                     <span style="float: left">{{ task.title }}</span>
@@ -162,7 +162,6 @@
         el: '#app',
         data: {
             tasks: [],
-            currentTaskId: null,
             currentTask: {
                 id: null,
                 title: '',
@@ -185,8 +184,8 @@
                 try {
                     this.tasks = await window.api.getTasks();
                     if (this.tasks.length > 0) {
-                        this.currentTaskId = this.currentTaskId || this.tasks[0].id;
-                        await this.loadTask(this.currentTaskId);
+                        this.currentTask.id = this.currentTask.id || this.tasks[0].id;
+                        await this.loadTask(this.currentTask.id);
                     }
                 } catch (error) {
                     this.$message.error('加载任务失败');
@@ -203,6 +202,12 @@
                 }
             },
             async runTask() {
+                const loadingMessage = this.$message({
+                    message: `正在运行任务 ${this.currentTask.title} ...`,
+                    type: 'info',
+                    duration: 0,
+                    showClose: true
+                });
                 try {
                     const response = await window.api.runTask(this.currentTask.id);
                     if (response.success) {
@@ -210,6 +215,8 @@
                     }
                 } catch (error) {
                     this.$message.error('运行失败：' + error);
+                } finally {
+                    loadingMessage.close();
                 }
             },
             createNewTask() {
@@ -229,7 +236,6 @@
                     fixedValues: [],
                     isActive: false
                 };
-                this.currentTaskId = null;
             },
             async getResult() {
                 if (!this.currentTask.id) {
@@ -261,7 +267,7 @@
                         return;
                     }
                     if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url)) {
-                        this.$message.warning('请输入合法目标URL');
+                        this.$message.warning('请输入合法目标URL, 如: http://example.com');
                         return;
                     }
                     if (!this.currentTask.dataFormat) {
@@ -304,12 +310,14 @@
                         type: 'warning'
                     });
 
+                    const currentIndex = this.tasks.findIndex(task => task.id === this.currentTask.id);
                     await window.api.deleteTask(this.currentTask.id);
                     await this.loadTasks();
 
                     if (this.tasks.length > 0) {
-                        this.currentTaskId = this.tasks[0].id;
-                        await this.loadTask(this.currentTaskId);
+                        const nextTask = this.tasks[currentIndex] || this.tasks[this.tasks.length - 1];
+                        this.currentTask.id = nextTask.id;
+                        await this.loadTask(this.currentTask.id);
                     } else {
                         this.createNewTask(); // 如果没有任务了，创建一个新的空任务表单
                     }
