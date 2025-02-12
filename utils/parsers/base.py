@@ -26,7 +26,7 @@ class BaseParser(ABC):
     @abstractmethod
     def parse(self, url, table_type=0):
         """
-        输出: 表格, 注释内容
-            table, comment
+        输出: 表格
+            table
         """
         pass

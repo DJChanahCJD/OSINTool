@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh">
-<!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） -->
+<!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） 添加一个字段mode？ -->
 <!-- todo: 任务配置支持批量json导入导出-->
-<!-- todo: 注释正则实现-->
-<!-- todo: 能够预览解析到的表格-->
+<!-- todo: 注释正则实现，考虑添加findall和search两种模式？-->
 <!-- todo: 翻页等按钮通过XPath实现（XPath需用户自行在浏览器获取并输入）-->
-<!-- todo: run加载动画-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,7 +12,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
 </head>
-
 <body>
     <div id="app" class="container">
         <div class="task-header">
@@ -102,18 +99,28 @@
                         <el-col :span="4">
                             <el-select v-model="item.parseType" placeholder="解析类型">
                                 <el-option label="列索引（从0开始）" value="column"></el-option>
-                                <el-option label="注释关键词" value="comment"></el-option>
+                                <el-option label="正则匹配" value="regex"></el-option>
                                 <el-option label="其他" value="other"></el-option>
                             </el-select>
                         </el-col>
-                        <el-col :span="8">
+                        <el-col :span="10">
                             <el-input-number v-if="item.parseType === 'column'" v-model="item.index" :min="0"
                                 placeholder="列索引">
                             </el-input-number>
-                            <el-input v-else-if="item.parseType === 'comment'" v-model="item.keyword"
-                                placeholder="注释关键词">
-                            </el-input>
-                            <!-- 注意：可图方便，这里comment和other共用keyword这个键 -->
+                            <template v-else-if="item.parseType === 'regex'">
+                                <el-row :gutter="10">
+                                    <el-col :span="10">
+                                        <el-select v-model="item.regexMode" placeholder="匹配模式">
+                                            <el-option label="findOne" value="0"></el-option>
+                                            <el-option label="findAll" value="1"></el-option>
+                                        </el-select>
+                                    </el-col>
+                                    <el-col :span="14">
+                                        <el-input v-model="item.keyword" placeholder="正则表达式，如：用户名:\s*(\w+)"></el-input>
+                                    </el-col>
+                                </el-row>
+                            </template>
+                            <!-- 注意：可图方便，这里regex和other共用keyword这个键 -->
                             <el-select v-else-if="item.parseType === 'other'" v-model="item.keyword"
                                 placeholder="其他解析值">
                                 <el-option label="当前时间" value="currentTime"></el-option>
@@ -130,10 +137,10 @@
             <el-form-item label="固定值">
                 <div v-for="(item, index) in currentTask.fixedValues" :key="index" class="dynamic-row">
                     <el-row :gutter="10" type="flex" align="middle">
-                        <el-col :span="8">
+                        <el-col :span="11">
                             <el-input v-model="item.source" placeholder="请输入源值"></el-input>
                         </el-col>
-                        <el-col :span="12">
+                        <el-col :span="11">
                             <el-input v-model="item.target" placeholder="请输入目标值"></el-input>
                         </el-col>
                         <el-col :span="2">
@@ -157,23 +164,14 @@
 
         <!-- 表格解析结果对话框 -->
         <el-dialog :visible.sync="dialogVisible" title="解析结果" width="80%">
-            <el-row>
-                <el-col :span="16">
-                    <span>Table</span>
-                    <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
-                        <!-- 自定义行列号 -->
-                        <el-table-column type="index" label="" :index="customRowIndex" width="60">
-                            <template slot-scope="scope"><span style="font-weight: bold; color: #909399">行{{ scope.$index }}</span></template>
-                        </el-table-column>
-                        <el-table-column v-for="(col, index) in tableColumns" :key="index" :label="'列' + (index)" :prop="index.toString()" :width="100">
-                        </el-table-column>
-                    </el-table>
-                </el-col>
-                <el-col :span="8">
-                    <span>Comments</span>
-                    <el-input type="textarea" v-model="parsedComments" rows="20" readonly style="width: 100%; max-height: 400px; overflow: auto;" placeholder="暂无数据"></el-input>
-                </el-col>
-            </el-row>
+            <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
+                <!-- 自定义行列号 -->
+                <el-table-column type="index" label="" :index="customRowIndex" width="60">
+                    <template slot-scope="scope"><span style="font-weight: bold; color: #909399">行{{ scope.$index }}</span></template>
+                </el-table-column>
+                <el-table-column v-for="(col, index) in tableColumns" :key="index" :label="'列' + (index)" :prop="index.toString()" :width="100">
+                </el-table-column>
+            </el-table>
         </el-dialog>
     </div>
 </body>
@@ -198,12 +196,11 @@
                 parseValues: [],
                 fixedValues: [],
                 isActive: false,
-                startRow: 0
+                startRow: 0,
             },
             dialogVisible: false,
             parsedTable: [],
             tableColumns: [],
-            parsedComments: '',
         },
         methods: {
             async loadTasks() {
@@ -212,6 +209,8 @@
                     if (this.tasks.length > 0) {
                         this.currentTask.id = this.currentTask.id || this.tasks[0].id;
                         await this.loadTask(this.currentTask.id);
+                    } else {
+                        this.createNewTask();
                     }
                 } catch (error) {
                     this.$message.error('加载任务失败');
@@ -226,6 +225,7 @@
                     }
                 } catch (error) {
                     this.$message.error('加载失败');
+                    localStorage.removeItem('currentTaskId');
                 }
             },
             async runTask() {
@@ -261,7 +261,7 @@
                     parseValues: [],
                     fixedValues: [],
                     isActive: false,
-                    startRow: 0
+                    startRow: 0,
                 };
             },
             // 预览解析结果
@@ -281,7 +281,6 @@
                     const response = await window.api.parseTask(this.currentTask.id);
                     if (response.success) {
                         this.parsedTable = response.table;
-                        this.parsedComments = response.comment;
                         this.tableColumns = this.parsedTable[0].map((_, index) => ({ label: `列${index}`, prop: index.toString() }));
                         this.dialogVisible = true;
                     } else {
@@ -390,7 +389,8 @@
                     parseType: 'column',  // 默认为列解析
                     key: '',        // 字段名
                     index: 0,        // 列索引
-                    keyword: ''      // 注释关键词（用于注释解析）
+                    keyword: '',      // 正则匹配表达式
+                    regexMode: 0,     // 正则匹配模式
                 });
             },
             removeParseValue(index) {
