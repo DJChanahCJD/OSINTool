@@ -2,7 +2,6 @@
 <html lang="zh">
 <!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） 添加一个字段mode？ -->
 <!-- todo: 任务配置支持批量json导入导出-->
-<!-- todo: 注释正则实现，考虑添加findall和search两种模式？-->
 <!-- todo: 翻页等按钮通过XPath实现（XPath需用户自行在浏览器获取并输入）-->
 <head>
     <meta charset="UTF-8">
@@ -410,6 +409,7 @@
                         this.currentTask.isActive
                     );
                     await this.loadTasks();
+                    this.$message.success('更新状态成功');
                 } catch (error) {
                     this.$message.error('更新状态失败');
                     this.currentTask.isActive = !this.currentTask.isActive; // 恢复状态
