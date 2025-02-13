@@ -9,6 +9,7 @@
   "author": "djchanahcjd",
   "license": "MIT",
   "dependencies": {
+    "custom-electron-titlebar": "^4.2.8",
     "electron": "^24.8.8",
     "osintool-client": "file:"
   }

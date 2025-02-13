@@ -1,4 +1,15 @@
 const { contextBridge } = require('electron')
+const { Titlebar, TitlebarColor } = require("custom-electron-titlebar");
+
+const customColor = TitlebarColor.fromHex('#66B1FF');
+window.addEventListener('DOMContentLoaded', () => {
+    // Title bar implementation
+    new Titlebar({
+        backgroundColor: customColor,
+        icon: '../logo.png',
+        // shadow: false
+    });
+});
 
 contextBridge.exposeInMainWorld('api', {
     // 获取所有任务
