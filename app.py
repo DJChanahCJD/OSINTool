@@ -87,7 +87,21 @@ def update_task_status(task_id):
 def get_running_tasks():
     jobs = scheduler.get_jobs()
     running_tasks = [{'id': job.id, 'next_run_time': job.next_run_time } for job in jobs]
-    return jsonify(running_tasks)
+    return jsonify({'success': True, 'running_tasks': running_tasks})
+
+
+@app.route('/api/tasks/<string:task_id>/parse', methods=['POST'])
+def parse_task(task_id):
+    Task = Query()
+    task = tasks_table.get(Task.id == task_id)
+    if not task:
+        return jsonify({'success': False, 'error': '任务不存在'}), 404
+    parser = ParserFactory.get_parser(task['dataFormat'])
+    table = parser.parse(
+        task['url'],
+        int(task.get('tableType', 0))
+    )
+    return jsonify({'success': True, 'table': table})
 
 @app.route('/api/tasks/<string:task_id>/run', methods=['POST'])
 def run_task(task_id):
