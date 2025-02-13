@@ -3,6 +3,7 @@
 <!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） 添加一个字段mode？ -->
 <!-- todo: 任务配置支持批量json导入导出-->
 <!-- todo: 翻页等按钮通过XPath实现（XPath需用户自行在浏览器获取并输入）-->
+ <!-- todo： 引入vue进行组件化开发？ -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -147,7 +148,7 @@
                         </el-col>
                     </el-row>
                 </div>
-                <el-button type="primary" icon="el-icon-plus" @click="addFixedValue">添加固定值</el-button>
+                <el-button type="primary" icon="el-icon-plus" @click="addFixedValue" style="margin-bottom: 40px;">添加固定值</el-button>
             </el-form-item>
         </el-form>
         <div class="action-buttons">
@@ -460,5 +461,4 @@
         }
     });
 </script>
-
 </html>
