@@ -1,6 +1,7 @@
 const { contextBridge, shell } = require('electron')
 const { Titlebar, TitlebarColor } = require("custom-electron-titlebar");
 const path = require('path');
+const fs = require('fs');
 
 const customColor = TitlebarColor.fromHex('#66B1FF');
 window.addEventListener('DOMContentLoaded', () => {
@@ -80,10 +81,23 @@ contextBridge.exposeInMainWorld('api', {
     openTaskResultFolder: (taskId) => {
         const rootPath = path.resolve(__dirname, '..');  // 根目录
         const taskPath = path.join(rootPath, 'data', taskId);  // 对应id的任务解析结果目录
+
+        // 检查路径是否存在，如果不存在则创建
+        if (!fs.existsSync(taskPath)) {
+            try {
+                fs.mkdirSync(taskPath, { recursive: true });
+                console.log(`Created task result folder: ${taskPath}`);
+            } catch (error) {
+                console.error(`Failed to create task result folder: ${error.message}`);
+                return false;
+            }
+        }
+
         shell.openPath(taskPath).then((error) => {
             if (error) {
                 console.error('Failed to open folder:', error);
             }
         });
+        return true;
     }
 })

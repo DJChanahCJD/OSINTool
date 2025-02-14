@@ -3,7 +3,6 @@
 <!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） 添加一个字段mode？ -->
 <!-- todo: 任务配置支持批量json导入导出-->
 <!-- todo: 翻页等按钮通过XPath实现（XPath需用户自行在浏览器获取并输入）-->
-
 <!-- todo: electron菜单栏自定义，提供choredriver地址-->
  <!-- todo：预览解析结果只保留前100行 -->
   <!-- todo：新建任务时自动保存任务 -->
@@ -11,7 +10,6 @@
 <!-- todo：文字表格允许正则匹配 -->
 <!-- todo：attack_time为时间戳 long 10位 -->
  <!-- todo：是否提供两种爬取模式静态网页request和动态网页webdrive -->
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -189,11 +187,11 @@
                     <el-button type="warning" icon="el-icon-refresh" @click="runTask">运行</el-button>
                     <el-button type="info" icon="el-icon-search" @click="showPreview">预览</el-button>
                     <div style="float: right">
-                        <el-button type="primary" @click="createNewTask">新增</el-button>
-                        <el-button icon="el-icon-copy" type="primary" @click="copyToNewTask">复制</el-button>
-                        <el-button type="success" @click="saveTask">保存</el-button>
-                        <el-button type="danger" @click="deleteTask">删除</el-button>
-                        <el-button type="info" @click="getResult">查看解析结果</el-button>
+                        <el-button icon="el-icon-plus" type="primary" @click="createNewTask">新增</el-button>
+                        <el-button icon="el-icon-copy-document" type="primary" @click="copyToNewTask">复制</el-button>
+                        <el-button icon="el-icon-files" type="success" @click="saveTask">保存</el-button>
+                        <el-button icon="el-icon-delete" type="danger" @click="deleteTask">删除</el-button>
+                        <el-button icon="el-icon-folder-opened" type="info" @click="getResult">查看解析结果</el-button>
                     </div>
                 </div>
 
