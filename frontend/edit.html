@@ -363,18 +363,11 @@
                 }
 
                 try {
-                    await this.$confirm('确认查看解析结果?', '提示', {
-                        confirmButtonText: '确定',
-                        cancelButtonText: '取消',
-                        type: 'info'
-                    });
-
-                    // todo: 这里可以添加实际的解析逻辑
-                    await window.api.runTask(this.currentTask.id);
-                    this.$message.success('解析完成');
+                    // 直接打开电脑任务管理器的文件夹
+                    await window.api.openTaskResultFolder(this.currentTask.id);
                 } catch (error) {
                     if (error !== 'cancel') {
-                        this.$message.error('解析失败');
+                        this.$message.error('无法打开文件夹:'+ error.message);
                     }
                 }
             },

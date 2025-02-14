@@ -1,5 +1,6 @@
-const { contextBridge } = require('electron')
+const { contextBridge, shell } = require('electron')
 const { Titlebar, TitlebarColor } = require("custom-electron-titlebar");
+const path = require('path');
 
 const customColor = TitlebarColor.fromHex('#66B1FF');
 window.addEventListener('DOMContentLoaded', () => {
@@ -74,5 +75,15 @@ contextBridge.exposeInMainWorld('api', {
         return fetch(`http://localhost:5000/api/tasks/${taskId}/run`, {
             method: 'POST'
         }).then(response => response.json())
+    },
+    // 打开根目录data/taskId
+    openTaskResultFolder: (taskId) => {
+        const rootPath = path.resolve(__dirname, '..');  // 根目录
+        const taskPath = path.join(rootPath, 'data', taskId);  // 对应id的任务解析结果目录
+        shell.openPath(taskPath).then((error) => {
+            if (error) {
+                console.error('Failed to open folder:', error);
+            }
+        });
     }
 })
