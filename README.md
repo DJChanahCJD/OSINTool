@@ -6,7 +6,7 @@
 #### 后端依赖
 在项目根目录下运行以下命令安装后端依赖：
 ```bash
-pip install flask flask-cors tinydb shortuuid requests beautifulsoup4 lxml pandas apscheduler
+pip install flask flask-cors tinydb shortuuid requests beautifulsoup4 lxml pandas apscheduler selenium webdriver_manager
 ```
 
 #### 前端依赖
