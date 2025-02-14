@@ -7,8 +7,11 @@ from datetime import datetime
 import os
 import shortuuid
 from utils.parser_factory import ParserFactory
+from utils.parsers.html_parser import HTMLParser
 from utils.regex_matcher import parse_keywords, parse_first_keyword
 from apscheduler.schedulers.background import BackgroundScheduler
+
+# https://regex101.com/
 
 app = Flask(__name__)
 CORS(app)
@@ -113,56 +116,79 @@ def run_task(task_id):
 
         os.makedirs('data', exist_ok=True)
 
-        parser = ParserFactory.get_parser(task['dataFormat'])
-        table = parser.parse(
-            task['url'],
-            int(task.get('tableType', 0))
-        )
-        content = parser.content
+        print(f'===========正在运行任务: {task_id}============')
 
         result = []
         parse_rules = task['parseValues']
         fixed_rules = task['fixedValues']
-        print(f'=======================')
-        print(f'正在运行任务: {task_id}')
-        print(f'table前5行:')
-        for row in table[:5]:
-            print(row)
+        dataFormat = task['dataFormat']
         print(f'parse_rules: {parse_rules}')
         print(f'fixed_rules: {fixed_rules}')
-        print(f'=======================')
 
-        memo = {}
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        startRow = task.get('startRow', 0)
-        for row in table[startRow:]:
-            temp = {}
-            for rule in parse_rules:
-                value = None
-                if rule['parseType'] == 'column':
-                    value = row[rule['index']]
-                elif rule['parseType'] == 'regex':
-                    if rule['keyword'] not in memo:
-                        memo[rule['keyword']] = parse_first_keyword(content, rule['keyword']) if int(rule['regexMode']) == 0 else parse_keywords(content, rule['keyword'])
-                    value = memo[rule['keyword']]
-                elif rule['parseType'] == 'other':
-                    if rule['keyword'] == 'currentTime':
-                        value = current_time
-                else:
-                    continue
-                temp[rule['key']] = value
-            for rule in fixed_rules:
-                temp[rule['source']] = rule['target']
-            result.append(temp)
+        if (dataFormat == 'html'):
+            xpaths = task['xpaths']
+            patterns = {rule['key']: rule['keyword'] for rule in parse_rules}
+            parser = HTMLParser(task['url'], xpaths['table'], xpaths['row'], xpaths['next_page'], patterns)
+            res = parser.parse()
 
+            print(f'res前5行: {res[:5]}')
+            # 添加特殊值
+            for item in res:
+                for rule in fixed_rules:
+                    item[rule['source']] = rule['target']
+                result.append(item)
+            print(f'if 结束')
+        else:
+            parser = ParserFactory.get_parser(dataFormat)
+
+            table = parser.parse(
+                task['url'],
+                int(task.get('tableType', 0))
+            )
+            content = parser.content
+            print(f'table前5行:')
+            for row in table[:5]:
+                print(row)
+            print(f'=======================')
+
+            memo = {}
+            startRow = task.get('startRow', 0)
+            for row in table[startRow:]:
+                temp = {}
+                for rule in parse_rules:
+                    value = None
+                    if rule['parseType'] == 'column':
+                        value = row[rule['index']]
+                    elif rule['parseType'] == 'regex':
+                        if rule['keyword'] not in memo:
+                            memo[rule['keyword']] = parse_first_keyword(content, rule['keyword']) if int(rule['regexMode']) == 0 else parse_keywords(content, rule['keyword'])
+                        value = memo[rule['keyword']]
+                    elif rule['parseType'] == 'other':
+                        if rule['keyword'] == 'currentTime':
+                            value = current_time
+                    else:
+                        continue
+                    temp[rule['key']] = value
+                for rule in fixed_rules:
+                    temp[rule['source']] = rule['target']
+                result.append(temp)
+
+        print(f'========命名文件======')
         output_dir = os.path.join('data', str(task_id))
+
         os.makedirs(output_dir, exist_ok=True)
         formatted_time = current_time.replace(' ', '_').replace(':', '.')
+
         filename = f'{formatted_time}.json'
         filepath = os.path.join(output_dir, filename)
 
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
+        print(f'========保存文件======')
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+        except Exception as file_error:
+            return jsonify({'success': False, 'error': f'保存文件时出错: {str(file_error)}'}), 500
 
         # 更新 lastRunTime 字段
         tasks_table.update({'lastRunTime': current_time}, Task.id == task_id)

@@ -3,7 +3,15 @@
 <!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） 添加一个字段mode？ -->
 <!-- todo: 任务配置支持批量json导入导出-->
 <!-- todo: 翻页等按钮通过XPath实现（XPath需用户自行在浏览器获取并输入）-->
- <!-- todo： 引入vue进行组件化开发？ -->
+
+<!-- todo: electron菜单栏自定义，提供choredriver地址-->
+ <!-- todo：预览解析结果只保留前100行 -->
+  <!-- todo：新建任务时自动保存任务 -->
+  <!-- todo：解析结果可以进行简单运算 -->
+<!-- todo：文字表格允许正则匹配 -->
+<!-- todo：attack_time为时间戳 long 10位 -->
+ <!-- todo：是否提供两种爬取模式静态网页request和动态网页webdrive -->
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -90,7 +98,7 @@
                                 </el-select>
                             </el-col>
                             <el-col v-if="currentTask.dataFormat === 'html'" :span="6">
-                                <el-select v-model="currentTask.tableType" placeholder="请选择表格类型">
+                                <el-select v-model="currentTask.tableType" placeholder="（废案，待删除，可换为解析方式（request, driver））请选择表格类型">
                                     <el-option label="table" value="0"></el-option>
                                     <el-option label="ol/ul/li" value="1"></el-option>
                                     <el-option label="div" value="2"></el-option>
@@ -103,7 +111,19 @@
                             </el-col>
                         </el-row>
                     </el-form-item>
-
+                    <el-form-item label="XPath" v-if="currentTask.dataFormat === 'html'">
+                        <el-row :gutter="10">
+                            <el-col :span="7">
+                                <el-input v-model="currentTask.xpaths.table" placeholder="表格XPath，如: //div[@role='table']"></el-input>
+                            </el-col>
+                            <el-col :span="7">
+                                <el-input v-model="currentTask.xpaths.row" placeholder="行XPath（相对于表格）"></el-input>
+                            </el-col>
+                            <el-col :span="7">
+                                <el-input v-model="currentTask.xpaths.next_page" placeholder="下一页按钮XPath"></el-input>
+                            </el-col>
+                        </el-row>
+                    </el-form-item>
                     <el-form-item label="解析值">
                         <div v-for="(item, index) in currentTask.parseValues" :key="index" class="dynamic-row">
                             <el-row :gutter="10" type="flex" align="middle">
@@ -112,7 +132,7 @@
                                 </el-col>
                                 <el-col :span="4">
                                     <el-select v-model="item.parseType" placeholder="解析类型">
-                                        <el-option label="列索引（从0开始）" value="column"></el-option>
+                                        <el-option label="列索引（从0开始）" value="column" v-if="currentTask.dataFormat != 'html'"></el-option>
                                         <el-option label="正则匹配" value="regex"></el-option>
                                         <el-option label="其他" value="other"></el-option>
                                     </el-select>
@@ -125,12 +145,12 @@
                                         <el-row :gutter="10">
                                             <el-col :span="10">
                                                 <el-select v-model="item.regexMode" placeholder="匹配模式">
-                                                    <el-option label="findOne" value="0"></el-option>
+                                                    <el-option label="findOne" value="0" default></el-option>
                                                     <el-option label="findAll" value="1"></el-option>
                                                 </el-select>
                                             </el-col>
                                             <el-col :span="14">
-                                                <el-input v-model="item.keyword" placeholder="正则表达式，如：用户名:\s*(\w+)"></el-input>
+                                                <el-input v-model="item.keyword" placeholder="正则表达式，如：(简单|中等|困难)"></el-input>
                                             </el-col>
                                         </el-row>
                                     </template>
@@ -170,6 +190,7 @@
                     <el-button type="info" icon="el-icon-search" @click="showPreview">预览</el-button>
                     <div style="float: right">
                         <el-button type="primary" @click="createNewTask">新增</el-button>
+                        <el-button icon="el-icon-copy" type="primary" @click="copyToNewTask">复制</el-button>
                         <el-button type="success" @click="saveTask">保存</el-button>
                         <el-button type="danger" @click="deleteTask">删除</el-button>
                         <el-button type="info" @click="getResult">查看解析结果</el-button>
@@ -210,6 +231,11 @@
                 dataFormat: '',
                 tableType: '0', // 0: table, 1: ol/ul/li, 2: div
                 interval: 1, // 间隔时间（分钟）
+                xpaths: {
+                    table: '',  // 表格XPath
+                    row: '',    // 行XPath
+                    next_page: '' // 下一页按钮XPath
+                },
                 parseValues: [],
                 fixedValues: [],
                 isActive: false,
@@ -276,13 +302,31 @@
                     execTime: '',
                     schedule: '',
                     dataFormat: 'txt', // 设置默认格式
-                    //tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                    tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                    xpaths: {
+                        table: '',  // 表格XPath
+                        row: '',    // 行XPath
+                        next_page: '' // 下一页按钮XPath
+                    },
                     interval: 1, // 间隔时间（分钟）
                     parseValues: [],
                     fixedValues: [],
                     isActive: false,
                     startRow: 0,
                 };
+            },
+            async copyToNewTask () {
+                try {
+                    const newTask = JSON.parse(JSON.stringify(this.currentTask));
+                    this.createNewTask();
+                    this.currentTask = newTask;
+                    newTask.id = null;
+                    newTask.title = `${this.currentTask.title}(副本)`;
+                    await this.saveTask();
+                }
+                catch (error) {
+                    this.$message.error('复制失败: ' + error.message);
+                }
             },
             // 预览解析结果
             async showPreview() {
@@ -336,28 +380,7 @@
             },
             async saveTask() {
                 try {
-                    // 基本验证
-                    if (!this.currentTask.title.trim()) {
-                        this.$message.warning('请输入任务名称');
-                        return;
-                    }
-                    if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url) && !/file:\/\/.+/i.test(this.currentTask.url)) {
-                        this.$message.warning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
-                        return;
-                    }
-                    if (!this.currentTask.dataFormat) {
-                        this.$message.warning('请选择数据格式');
-                        return;
-                    }
-                    if (this.currentTask.scheduleType === 'fixed' && (!this.currentTask.days || !this.currentTask.execTime)) {
-                        this.$message.warning('请填写定时任务的天数和执行时间');
-                        return;
-                    }
-                    if (this.currentTask.scheduleType === 'interval' && !this.currentTask.interval) {
-                        this.$message.warning('请填写间隔时间');
-                        return;
-                    }
-
+                    this.validateData();
                     this.updateSchedule();
 
                     if (this.currentTask.id) {
@@ -404,9 +427,76 @@
                     }
                 }
             },
+            validateData() {
+                // 基本验证
+                if (!this.currentTask.title.trim()) {
+                    this.$message.warning('请输入任务名称');
+                    return false;
+                }
+                if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url) && !/file:\/\/.+/i.test(this.currentTask.url)) {
+                    this.$message.warning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
+                    return false;
+                }
+                if (!this.currentTask.dataFormat) {
+                    this.$message.warning('请选择数据格式');
+                    return false;
+                }
+                if (this.currentTask.scheduleType === 'fixed' && (!this.currentTask.days || !this.currentTask.execTime)) {
+                    this.$message.warning('请填写定时任务的天数和执行时间');
+                    return false;
+                }
+                if (this.currentTask.scheduleType === 'interval' && !this.currentTask.interval) {
+                    this.$message.warning('请填写间隔时间');
+                    return false;
+                }
+
+                // xpath验证
+                if (this.currentTask.dataFormat === 'html') {
+                    // 简单的 XPath 正则验证
+                    const xpathRegex = /^(\/\/?|@|[\w-]+|\[.*?\]|\(.*?\)|\*|@[\w-]+|\.\.|\.)/;
+
+                    if (!this.currentTask.xpaths.table.trim() || !xpathRegex.test(this.currentTask.xpaths.table)) {
+                        this.$message.warning('请输入合法表格XPath');
+                        return false;
+                    }
+                    if (!this.currentTask.xpaths.row.trim() || !xpathRegex.test(this.currentTask.xpaths.row)) {
+                        this.$message.warning('请输入合法行XPath');
+                        return false;
+                    }
+                    if (this.currentTask.xpaths.next_page && !xpathRegex.test(this.currentTask.xpaths.next_page)) {
+                        this.$message.warning('请输入合法下一页按钮XPath');
+                        return false;
+                    }
+                    // 去掉多余空格
+                    this.currentTask.xpaths.table = this.currentTask.xpaths.table.trim();
+                    this.currentTask.xpaths.row = this.currentTask.xpaths.row.trim();
+                    this.currentTask.xpaths.next_page = this.currentTask.xpaths.next_page.trim();
+                }
+
+                // 正则验证
+                for (let item of this.currentTask.parseValues) {
+                    if (item.parseType === 'regex' && item.keyword &&!item.keyword.trim()) {
+                        this.$message.warning('正则表达式不能为空');
+                        return false;
+                    }
+                    //详细验证正则表达式
+                    if (item.parseType === 'regex' && item.keyword) {
+                        try {
+                            new RegExp(item.keyword);
+                        } catch (error) {
+                            this.$message.warning('正则表达式不合法，请先在https://regex101.com/ 验证是否匹配');
+                            return false;
+                        }
+                    }
+                    // 去掉多余空格
+                    item.key = item.key.trim();
+                    item.keyword = item.keyword.trim();
+                }
+                return true;
+            },
             addParseValue() {
                 this.currentTask.parseValues.push({
-                    parseType: 'column',  // 默认为列解析
+                    parseType: '',  // 解析类型
                     key: '',        // 字段名
                     index: 0,        // 列索引
                     keyword: '',      // 正则匹配表达式

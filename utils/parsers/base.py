@@ -18,7 +18,7 @@ class BaseParser(ABC):
             else:
                 raise FileNotFoundError(f"本地文件不存在: {file_path}")
         else:
-            response = requests.get(url)
+            response = requests.get(url)    # todo: 请求头？ USER_AGENTS？
             response.raise_for_status()  # 检查请求是否成功
             self.content = response.text
             print(f"已加载URL: {url}")
