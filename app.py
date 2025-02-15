@@ -128,9 +128,10 @@ def run_task(task_id):
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         columns = {rule['key']: rule['index'] for rule in parse_rules}
         patterns = {rule['key']: rule['pattern'] for rule in parse_rules}
+        maxCount = task['maxCount'] # 最大爬取数量
         if (dataFormat == 'html'):
             xpaths = task['xpaths']
-            parser = HTMLParser(task['url'], xpaths['table'], xpaths['row'], xpaths['next_page'], patterns)
+            parser = HTMLParser(task['url'], xpaths['table'], xpaths['row'], xpaths['next_page'], patterns, maxCount)
             content = parser.get_content()    # 其他值的正则解析用
             res = parser.parse()
             # 添加其他值
@@ -143,7 +144,10 @@ def run_task(task_id):
                 task['parseType'],
                 columns,
                 patterns,
+                task['table_pattern'],
+                maxCount
             )
+            content = parser.get_content()    # 其他值的正则解析用
 
             # 添加其他值
             result = addOtherValues(res, other_rules, content, current_time)
@@ -218,7 +222,7 @@ def addOtherValues(data, other_rules, html_content, current_time):
                     memo[rule['source']] = match_one(html_content, rule['target'])
                 value = memo[rule['source']]
                 item[rule['source']] = value
-            elif rule['valueType'] == 'other':
+            elif rule['valueType'] == 'special':
                 if rule['target'] == 'attack_time':
                     item[rule['source']] = current_time
         result.append(item)

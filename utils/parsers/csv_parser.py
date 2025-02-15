@@ -7,7 +7,7 @@ import re
 
 
 class CSVParser(BaseParser):
-    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None):
+    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None, maxCount=1000):
         """
         解析CSV文件并根据传入的 columns 和 patterns 进行处理。
         若parseType==0, 则通过 columns 根据索引定位列
@@ -16,11 +16,12 @@ class CSVParser(BaseParser):
         """
         # 加载 CSV 内容
         table = self.parse_to_table(url)
+        print("========正在解析csv文件============")
 
         if parseType == 0:  # 按列索引解析
-            return self.convert_to_dict(table, columns, patterns)
+            return self.convert_to_dict(table, columns, maxCount)
         elif parseType == 1:  # 如果是正则匹配类型，进行正则处理
-            return self.convert_to_dict_with_patterns(table, columns, patterns)
+            return self.convert_to_dict_with_patterns(table, patterns, maxCount)
 
         return table
 
@@ -34,7 +35,7 @@ class CSVParser(BaseParser):
 
         return table
 
-    def convert_to_dict(self, table, columns, patterns):
+    def convert_to_dict(self, table, columns, maxCount=1000):
         """将二维数组转换为字典列表，使用 columns 来选择特定的列"""
         if not table:
             return []
@@ -43,7 +44,7 @@ class CSVParser(BaseParser):
         dict_list = []
 
         # 将每一行转换为字典
-        for row in table[1:]:
+        for row in table[1:maxCount]:
             row_dict = {}
 
             # 使用 columns 映射索引并提取数据
@@ -55,7 +56,7 @@ class CSVParser(BaseParser):
 
         return dict_list
 
-    def convert_to_dict_with_patterns(self, table, columns, patterns):
+    def convert_to_dict_with_patterns(self, table, patterns, maxCount=1000):
         """基于正则模式将整个表格转换为字典列表"""
         if not table:
             return []
@@ -63,7 +64,7 @@ class CSVParser(BaseParser):
         # column_names = table[0]  # 第一行是列名
         dict_list = []
 
-        for row in table[1:]:
+        for row in table[1:maxCount]:
             row_str = ' '.join(map(str, row))  # 将整行数据拼接成字符串
             row_dict = {}
             for key, pattern in patterns.items():

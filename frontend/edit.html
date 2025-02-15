@@ -102,9 +102,9 @@
                                 </el-select>
                             </el-col>
                             <el-col :span="10">
-                                <span >从第 </span>
-                                <el-input-number v-model="currentTask.startRow" :min="0" controls-position="right" placeholder="从0开始"></el-input-number>
-                                <span> 行开始</span>
+                                <span>最多爬取</span>
+                                <el-input-number v-model="currentTask.maxCount" :min="1" controls-position="right" placeholder="不少于1" style="margin: 0 4px;"></el-input-number>
+                                <span>个数据</span>
                             </el-col>
                         </el-row>
                     </el-form-item>
@@ -121,8 +121,12 @@
                             </el-col>
                         </el-row>
                     </el-form-item>
-                    <el-form-item label="table_pattern" v-if="currentTask.dataFormat === 'txt'">
-                        <el-input v-model="currentTask.table_pattern" placeholder="表格的正则匹配，如: (\S+)\s+#\s+domain - (.*)"></el-input>
+                    <el-form-item label="表格匹配" v-if="currentTask.dataFormat === 'txt'">
+                        <el-row :gutter="10">
+                            <el-col :span="12">
+                                <el-input v-model="currentTask.table_pattern" placeholder="表格的正则匹配，如: (\S+)\s+#\s+domain - (.*)"></el-input>
+                            </el-col>
+                        </el-row>
                     </el-form-item>
                     <el-form-item label="列解析">
                         <div v-for="(item, index) in currentTask.parseValues" :key="index" class="dynamic-row">
@@ -130,10 +134,12 @@
                                 <el-col :span="8">
                                     <el-input v-model="item.key" placeholder="解析字段"></el-input>
                                 </el-col>
-                                <el-col :span="10">
-                                    <el-input-number v-if="currentTask.parseType === 'column'" v-model="item.index" :min="0"
-                                        placeholder="列索引">
-                                    </el-input-number>
+                                <el-col :span="8">
+                                    <template v-if ="currentTask.parseType === 0">
+                                        <span>第</span>
+                                        <el-input-number v-model="item.index" :min="0" controls-position="right" placeholder="列索引"></el-input-number>
+                                        <span>列</span>
+                                    </template>
                                     <el-input v-else v-model="item.pattern" placeholder="正则表达式，如：(简单|中等|困难)"></el-input>
                                 </el-col>
                                 <el-col :span="2">
@@ -231,7 +237,7 @@
                 parseValues: [],
                 otherValues: [],
                 isActive: false,
-                startRow: 0,
+                maxCount: 1,
             },
             specialValues: [
                 { value: 'attack_time', label: '爬取时间' },
@@ -308,7 +314,7 @@
                     parseValues: [],
                     otherValues: [],
                     isActive: false,
-                    startRow: 0,
+                    maxCount: 1,    // 最多爬取数据数量
                 };
             },
             async copyToNewTask () {
@@ -463,10 +469,6 @@
                     return false;
                 }
                 // 正则验证
-                if (!this.currentTask.otherValues || this.currentTask.otherValues.length === 0) {
-                    this.$message.warning('请添加特殊值');
-                    return false;
-                }
                 if (this.currentTask.otherValues.some(item =>!item.source.trim() ||!item.target.trim())) {
                     this.$message.warning('源值和目标值不能为空');
                     return false;

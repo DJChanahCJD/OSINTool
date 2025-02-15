@@ -24,7 +24,7 @@ class BaseParser(ABC):
             print(f"已加载URL: {url}")
 
     @abstractmethod
-    def parse(self, url, parseType, columns, patterns, table_pattern=None):
+    def parse(self, url, parseType, columns, patterns, table_pattern=None, maxCount=None):
         """
         输出: 解析表格
         """

@@ -13,13 +13,13 @@ import time
 # 是否提供多种驱动？
 
 class HTMLParser:
-    def __init__(self, url, table_xpath, rows_xpath, next_page_xpath, patterns, pages=2):
+    def __init__(self, url, table_xpath, rows_xpath, next_page_xpath, patterns, maxCount=1000):
         self.url = url
         self.table_xpath = table_xpath
         self.rows_xpath = rows_xpath
         self.next_page_xpath = next_page_xpath
         self.patterns = patterns
-        self.pages = pages
+        self.maxCount = maxCount
         self.content = None
 
     def get_content(self):
@@ -49,9 +49,9 @@ class HTMLParser:
         time.sleep(5)  # 等待5秒以确保页面加载完成
 
         all_results = []
-        page_count = 0
+        count = 0
 
-        while page_count < self.pages:
+        while True:
             # 获取当前页面源码
             self.content = driver.page_source
             print("获取页面源码...")
@@ -59,6 +59,11 @@ class HTMLParser:
             # 解析数据
             results = self.parse_table_with_patterns(self.content)
             all_results.extend(results)
+
+            if len(all_results) >= self.maxCount:
+                print(f"达到预定数据量{self.maxCount}，停止抓取")
+                all_results = all_results[:self.maxCount]
+                break
 
             try:
                 # 查找下一页按钮
@@ -76,7 +81,6 @@ class HTMLParser:
                 print(f"无法点击下一页: {str(e)}")
                 break
 
-            page_count += 1
 
         driver.quit()
 

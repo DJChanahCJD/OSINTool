@@ -2,7 +2,7 @@ import re
 from .base import BaseParser
 
 class TXTParser(BaseParser):
-    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None):
+    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None, maxCount=1000):
         """
         解析TXT文件并根据传入的 columns 和 patterns 进行处理。
         若parseType==0, 则通过 columns 根据索引定位列
@@ -12,6 +12,9 @@ class TXTParser(BaseParser):
         self.load_content(url)
         table = []
         lines = self.content.split('\n')  # 按行分割文件内容
+
+        print("========正在匹配表格行============")
+        print("请求参数:", url, parseType, columns, patterns, table_pattern)
 
         for line in lines:
             line = line.strip()
@@ -25,7 +28,10 @@ class TXTParser(BaseParser):
                 row_data = match.groups()
                 if row_data:
                     table.append(row_data)
+                    if len(table) >= maxCount:
+                        break
 
+        print("========匹配表格行完成============")
         # 根据解析类型执行不同的处理
         if parseType == 0:  # 按列索引解析
             return self.convert_to_dict(table, columns, patterns)
