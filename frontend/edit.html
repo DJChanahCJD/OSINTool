@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh">
+<!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） 添加一个字段mode？ -->
+<!-- todo: 任务配置支持批量json导入导出-->
+<!-- todo: 翻页等按钮通过XPath实现（XPath需用户自行在浏览器获取并输入）-->
+
+<!-- todo: electron菜单栏自定义，提供choredriver地址-->
+ <!-- todo：预览解析结果只保留前100行 -->
+  <!-- todo：新建任务时自动保存任务 -->
+  <!-- todo：解析结果可以进行简单运算 -->
+<!-- todo：文字表格允许正则匹配 -->
+<!-- todo：attack_time为时间戳 long 10位 -->
+ <!-- todo：是否提供两种爬取模式静态网页request和动态网页webdrive -->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINTool</title>
+    <style>
+        [v-cloak] {
+            display: none !important;
+        }
+    </style>
+    <link rel="prefetch" href="index.html">
+    <link rel="prefetch" href="edit.html">
+    <link rel="stylesheet" href="./styles/edit.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+</head>
+<body>
+    <div id="app" v-cloak>
+        <!-- 添加加载指示器 -->
+        <div class="page-loading" v-if="!pageReady">
+            <i class="el-icon-loading"></i>
+        </div>
+        <transition name="fade">
+            <div v-if="pageReady" class="container">
+                <div class="task-header">
+                    <el-button icon="el-icon-back" @click="backToList">返回列表</el-button>
+                    <el-input v-model="currentTask.title" placeholder="任务名称" style="width: 200px;" clearable>
+                    </el-input>
+                    <span style="font-size:12px; color: grey;">id: {{currentTask.id}}</span>
+                    <!-- todo: 上次运行时间 -->
+                    <el-button :type="currentTask.isActive ? 'success' : 'danger'"
+                        :icon="currentTask.isActive ? 'el-icon-check' : 'el-icon-close'" @click="toggleTaskStatus">
+                        {{ currentTask.isActive ? '运行中' : '已停止' }}
+                    </el-button>
+                    <el-select v-model="currentTask.id" filterable placeholder="选择任务" @change="loadTask" style="width: 200px;"
+                        clearable>
+                        <el-option v-for="task in tasks" :key="task.id" :label="task.title" :value="task.id">
+                            <span style="float: left">{{ task.title }}</span>
+                            <span style="float: right; font-weight: bold"
+                                :style="{ color: task.isActive ? '#85CE61' : '#F56C6C' }">
+                                {{ task.isActive ? '运行中' : '已停止' }}
+                            </span>
+                        </el-option>
+                    </el-select>
+                </div>
+
+                <el-form label-width="80px">
+                    <el-form-item label="网址">
+                        <el-input v-model="currentTask.url" placeholder="请输入网址或本地文件路径，如: http://example.com 或 file://path/to/file"></el-input>
+                    </el-form-item>
+                    </el-col>
+                    <el-form-item label="定时周期">
+                        <el-select v-model="currentTask.scheduleType" placeholder="执行方式" style="width: 120px"
+                            @change="handleScheduleTypeChange">
+                            <el-option label="定时" value="fixed"></el-option>
+                            <el-option label="间隔" value="interval"></el-option>
+                            <el-option label="随机" value="random"></el-option>
+                        </el-select>
+                        <template v-if="currentTask.scheduleType === 'fixed'">
+                            <span style="margin: 0 5px">每</span>
+                            <el-input-number v-model="currentTask.days" :min="1" controls-position="right" style="width: 100px">
+                            </el-input-number>
+                            <span style="margin: 0 5px">天</span>
+                            <el-time-picker v-model="currentTask.execTime" format="HH:mm" value-format="HH:mm"
+                                placeholder="选择时间" style="width: 120px">
+                            </el-time-picker>
+                        </template>
+                        <template v-else-if="currentTask.scheduleType === 'interval'">
+                            <span style="margin: 0 5px">每</span>
+                            <el-input-number v-model="currentTask.interval" :min="1" controls-position="right"
+                                style="width: 100px">
+                            </el-input-number>
+                            <span style="margin: 0 5px">分钟</span>
+                        </template>
+                    </el-form-item>
+
+                    <el-form-item label="数据格式">
+                        <el-row :gutter="10">
+                            <el-col :span="6">
+                                <el-select v-model="currentTask.dataFormat" placeholder="请选择数据格式">
+                                    <el-option label="TXT" value="txt"></el-option>
+                                    <el-option label="HTML" value="html"></el-option>
+                                    <el-option label="PHP" value="php"></el-option>
+                                    <el-option label="CSV" value="csv"></el-option>
+                                </el-select>
+                            </el-col>
+                            <el-col v-if="currentTask.dataFormat === 'html'" :span="6">
+                                <el-select v-model="currentTask.tableType" placeholder="（废案，待删除，可换为解析方式（request, driver））请选择表格类型">
+                                    <el-option label="table" value="0"></el-option>
+                                    <el-option label="ol/ul/li" value="1"></el-option>
+                                    <el-option label="div" value="2"></el-option>
+                                </el-select>
+                            </el-col>
+                            <el-col :span="10">
+                                <span >从第 </span>
+                                <el-input-number v-model="currentTask.startRow" :min="0" controls-position="right" placeholder="从0开始"></el-input-number>
+                                <span> 行开始</span>
+                            </el-col>
+                        </el-row>
+                    </el-form-item>
+                    <el-form-item label="XPath" v-if="currentTask.dataFormat === 'html'">
+                        <el-row :gutter="10">
+                            <el-col :span="7">
+                                <el-input v-model="currentTask.xpaths.table" placeholder="表格XPath，如: //div[@role='table']"></el-input>
+                            </el-col>
+                            <el-col :span="7">
+                                <el-input v-model="currentTask.xpaths.row" placeholder="行XPath（相对于表格）"></el-input>
+                            </el-col>
+                            <el-col :span="7">
+                                <el-input v-model="currentTask.xpaths.next_page" placeholder="下一页按钮XPath"></el-input>
+                            </el-col>
+                        </el-row>
+                    </el-form-item>
+                    <el-form-item label="解析值">
+                        <div v-for="(item, index) in currentTask.parseValues" :key="index" class="dynamic-row">
+                            <el-row :gutter="10" type="flex" align="middle">
+                                <el-col :span="8">
+                                    <el-input v-model="item.key" placeholder="解析字段"></el-input>
+                                </el-col>
+                                <el-col :span="4">
+                                    <el-select v-model="item.parseType" placeholder="解析类型">
+                                        <el-option label="列索引（从0开始）" value="column" v-if="currentTask.dataFormat != 'html'"></el-option>
+                                        <el-option label="正则匹配" value="regex"></el-option>
+                                        <el-option label="其他" value="other"></el-option>
+                                    </el-select>
+                                </el-col>
+                                <el-col :span="10">
+                                    <el-input-number v-if="item.parseType === 'column'" v-model="item.index" :min="0"
+                                        placeholder="列索引">
+                                    </el-input-number>
+                                    <template v-else-if="item.parseType === 'regex'">
+                                        <el-row :gutter="10">
+                                            <el-col :span="10">
+                                                <el-select v-model="item.regexMode" placeholder="匹配模式">
+                                                    <el-option label="findOne" value="0" default></el-option>
+                                                    <el-option label="findAll" value="1"></el-option>
+                                                </el-select>
+                                            </el-col>
+                                            <el-col :span="14">
+                                                <el-input v-model="item.keyword" placeholder="正则表达式，如：(简单|中等|困难)"></el-input>
+                                            </el-col>
+                                        </el-row>
+                                    </template>
+                                    <!-- 注意：可图方便，这里regex和other共用keyword这个键 -->
+                                    <el-select v-else-if="item.parseType === 'other'" v-model="item.keyword"
+                                        placeholder="其他解析值">
+                                        <el-option label="当前时间" value="currentTime"></el-option>
+                                    </el-select>
+                                </el-col>
+                                <el-col :span="2">
+                                    <el-button type="danger" icon="el-icon-delete" @click="removeParseValue(index)"></el-button>
+                                </el-col>
+                            </el-row>
+                        </div>
+                        <el-button type="primary" icon="el-icon-plus" @click="addParseValue">添加解析值</el-button>
+                    </el-form-item>
+
+                    <el-form-item label="固定值">
+                        <div v-for="(item, index) in currentTask.fixedValues" :key="index" class="dynamic-row">
+                            <el-row :gutter="10" type="flex" align="middle">
+                                <el-col :span="11">
+                                    <el-input v-model="item.source" placeholder="请输入源值"></el-input>
+                                </el-col>
+                                <el-col :span="11">
+                                    <el-input v-model="item.target" placeholder="请输入目标值"></el-input>
+                                </el-col>
+                                <el-col :span="2">
+                                    <el-button type="danger" icon="el-icon-delete" @click="removeFixedValue(index)"></el-button>
+                                </el-col>
+                            </el-row>
+                        </div>
+                        <el-button type="primary" icon="el-icon-plus" @click="addFixedValue" style="margin-bottom: 40px;">添加固定值</el-button>
+                    </el-form-item>
+                </el-form>
+                <div class="action-buttons">
+                    <el-button type="warning" icon="el-icon-refresh" @click="runTask">运行</el-button>
+                    <el-button type="info" icon="el-icon-search" @click="showPreview">预览</el-button>
+                    <div style="float: right">
+                        <el-button type="primary" @click="createNewTask">新增</el-button>
+                        <el-button icon="el-icon-copy" type="primary" @click="copyToNewTask">复制</el-button>
+                        <el-button type="success" @click="saveTask">保存</el-button>
+                        <el-button type="danger" @click="deleteTask">删除</el-button>
+                        <el-button type="info" @click="getResult">查看解析结果</el-button>
+                    </div>
+                </div>
+
+                <!-- 表格解析结果对话框 -->
+                <el-dialog :visible.sync="dialogVisible" title="解析结果" width="80%">
+                    <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
+                        <!-- 自定义行列号 -->
+                        <el-table-column type="index" label="" :index="customRowIndex" width="60">
+                            <template slot-scope="scope"><span style="font-weight: bold; color: #909399">行{{ scope.$index }}</span></template>
+                        </el-table-column>
+                        <el-table-column v-for="(col, index) in tableColumns" :key="index" :label="'列' + (index)" :prop="index.toString()" :width="100">
+                        </el-table-column>
+                    </el-table>
+                </el-dialog>
+            </div>
+        </transition>
+    </div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+            pageReady: false,
+            tasks: [],
+            currentTask: {
+                id: null,
+                title: '',
+                url: '',
+                scheduleType: 'random', // 'fixed' 或 'random' 或 'interval'
+                days: 1,
+                execTime: '',
+                schedule: '', // 最终存储的cron表达式
+                dataFormat: '',
+                tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                interval: 1, // 间隔时间（分钟）
+                xpaths: {
+                    table: '',  // 表格XPath
+                    row: '',    // 行XPath
+                    next_page: '' // 下一页按钮XPath
+                },
+                parseValues: [],
+                fixedValues: [],
+                isActive: false,
+                startRow: 0,
+            },
+            dialogVisible: false,
+            parsedTable: [],
+            tableColumns: [],
+        },
+        methods: {
+            backToList() {
+                window.location.href = 'index.html';
+            },
+            async loadTasks() {
+                try {
+                    this.tasks = await window.api.getTasks();
+                    if (this.tasks.length > 0 && this.currentTask.id) {
+                        await this.loadTask(this.currentTask.id);
+                    } else {
+                        this.createNewTask();
+                    }
+                } catch (error) {
+                    this.$message.error('加载任务失败');
+                    this.createNewTask();
+                }
+            },
+            async loadTask(taskId) {
+                try {
+                    const task = await window.api.getTask(taskId);
+                    if (task) {
+                        this.currentTask = task;
+                        localStorage.setItem('currentTaskId', JSON.stringify(taskId));
+                    }
+                } catch (error) {
+                    this.$message.error('加载失败');
+                    localStorage.removeItem('currentTaskId');
+                }
+            },
+            async runTask() {
+                const loadingMessage = this.$message({
+                    message: `正在运行任务 ${this.currentTask.title} ...`,
+                    type: 'info',
+                    duration: 0,
+                    showClose: true
+                });
+                try {
+                    const response = await window.api.runTask(this.currentTask.id);
+                    if (response.success) {
+                        this.$message.success('运行成功');
+                    }
+                } catch (error) {
+                    this.$message.error('运行失败：' + error);
+                } finally {
+                    loadingMessage.close();
+                }
+            },
+            createNewTask() {
+                this.currentTask = {
+                    id: null,
+                    title: `新任务${this.tasks.length + 1}`,
+                    url: '',
+                    scheduleType: 'random',
+                    days: 1,
+                    execTime: '',
+                    schedule: '',
+                    dataFormat: 'txt', // 设置默认格式
+                    tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                    xpaths: {
+                        table: '',  // 表格XPath
+                        row: '',    // 行XPath
+                        next_page: '' // 下一页按钮XPath
+                    },
+                    interval: 1, // 间隔时间（分钟）
+                    parseValues: [],
+                    fixedValues: [],
+                    isActive: false,
+                    startRow: 0,
+                };
+            },
+            async copyToNewTask () {
+                try {
+                    const newTask = JSON.parse(JSON.stringify(this.currentTask));
+                    this.createNewTask();
+                    this.currentTask = newTask;
+                    newTask.id = null;
+                    newTask.title = `${this.currentTask.title}(副本)`;
+                    await this.saveTask();
+                }
+                catch (error) {
+                    this.$message.error('复制失败: ' + error.message);
+                }
+            },
+            // 预览解析结果
+            async showPreview() {
+                if (!this.currentTask.id) {
+                    this.$message.warning('请先选择任务');
+                    return;
+                }
+
+                const loadingMessage = this.$message({
+                    message: `正在解析任务 ${this.currentTask.title} ...`,
+                    type: 'info',
+                    duration: 0,
+                    showClose: true
+                });
+                try {
+                    const response = await window.api.parseTask(this.currentTask.id);
+                    if (response.success) {
+                        this.parsedTable = response.table;
+                        this.tableColumns = this.parsedTable[0].map((_, index) => ({ label: `列${index}`, prop: index.toString() }));
+                        this.dialogVisible = true;
+                    } else {
+                        this.$message.error('解析失败: ' + response.error);
+                    }
+                }catch (error) {
+                    this.$message.error('解析失败: ' + error.message);
+                } finally {
+                    loadingMessage.close();
+                }
+            },
+            async getResult() {
+                if (!this.currentTask.id) {
+                    this.$message.warning('请先选择任务');
+                    return;
+                }
+
+                try {
+                    await this.$confirm('确认查看解析结果?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'info'
+                    });
+
+                    // todo: 这里可以添加实际的解析逻辑
+                    await window.api.runTask(this.currentTask.id);
+                    this.$message.success('解析完成');
+                } catch (error) {
+                    if (error !== 'cancel') {
+                        this.$message.error('解析失败');
+                    }
+                }
+            },
+            async saveTask() {
+                try {
+                    this.validateData();
+                    this.updateSchedule();
+
+                    if (this.currentTask.id) {
+                        await window.api.updateTask(this.currentTask.id, this.currentTask);
+                    } else {
+                        const result = await window.api.createTask(this.currentTask);
+                        this.currentTask.id = result.id;
+                    }
+                    await this.loadTasks();
+                    this.$message.success('保存成功');
+                } catch (error) {
+                    this.$message.error('保存失败: ' + error.message);
+                }
+            },
+            async deleteTask() {
+                if (!this.currentTask.id) {
+                    this.$message.warning('请先选择要删除的任务');
+                    return;
+                }
+
+                try {
+                    await this.$confirm('确认删除该任务吗？', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    });
+
+                    const currentIndex = this.tasks.findIndex(task => task.id === this.currentTask.id);
+                    await window.api.deleteTask(this.currentTask.id);
+                    await this.loadTasks();
+
+                    if (this.tasks.length > 0) {
+                        const nextTask = this.tasks[currentIndex] || this.tasks[this.tasks.length - 1];
+                        this.currentTask.id = nextTask.id;
+                        await this.loadTask(this.currentTask.id);
+                    } else {
+                        this.createNewTask(); // 如果没有任务了，创建一个新的空任务表单
+                    }
+
+                    this.$message.success('删除成功');
+                } catch (error) {
+                    if (error !== 'cancel') {
+                        this.$message.error('删除失败: ' + error.message);
+                    }
+                }
+            },
+            validateData() {
+                // 基本验证
+                if (!this.currentTask.title.trim()) {
+                    this.$message.warning('请输入任务名称');
+                    return false;
+                }
+                if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url) && !/file:\/\/.+/i.test(this.currentTask.url)) {
+                    this.$message.warning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
+                    return false;
+                }
+                if (!this.currentTask.dataFormat) {
+                    this.$message.warning('请选择数据格式');
+                    return false;
+                }
+                if (this.currentTask.scheduleType === 'fixed' && (!this.currentTask.days || !this.currentTask.execTime)) {
+                    this.$message.warning('请填写定时任务的天数和执行时间');
+                    return false;
+                }
+                if (this.currentTask.scheduleType === 'interval' && !this.currentTask.interval) {
+                    this.$message.warning('请填写间隔时间');
+                    return false;
+                }
+
+                // xpath验证
+                if (this.currentTask.dataFormat === 'html') {
+                    // 简单的 XPath 正则验证
+                    const xpathRegex = /^(\/\/?|@|[\w-]+|\[.*?\]|\(.*?\)|\*|@[\w-]+|\.\.|\.)/;
+
+                    if (!this.currentTask.xpaths.table.trim() || !xpathRegex.test(this.currentTask.xpaths.table)) {
+                        this.$message.warning('请输入合法表格XPath');
+                        return false;
+                    }
+                    if (!this.currentTask.xpaths.row.trim() || !xpathRegex.test(this.currentTask.xpaths.row)) {
+                        this.$message.warning('请输入合法行XPath');
+                        return false;
+                    }
+                    if (this.currentTask.xpaths.next_page && !xpathRegex.test(this.currentTask.xpaths.next_page)) {
+                        this.$message.warning('请输入合法下一页按钮XPath');
+                        return false;
+                    }
+                    // 去掉多余空格
+                    this.currentTask.xpaths.table = this.currentTask.xpaths.table.trim();
+                    this.currentTask.xpaths.row = this.currentTask.xpaths.row.trim();
+                    this.currentTask.xpaths.next_page = this.currentTask.xpaths.next_page.trim();
+                }
+
+                // 正则验证
+                for (let item of this.currentTask.parseValues) {
+                    if (item.parseType === 'regex' && item.keyword &&!item.keyword.trim()) {
+                        this.$message.warning('正则表达式不能为空');
+                        return false;
+                    }
+                    //详细验证正则表达式
+                    if (item.parseType === 'regex' && item.keyword) {
+                        try {
+                            new RegExp(item.keyword);
+                        } catch (error) {
+                            this.$message.warning('正则表达式不合法，请先在https://regex101.com/ 验证是否匹配');
+                            return false;
+                        }
+                    }
+                    // 去掉多余空格
+                    item.key = item.key.trim();
+                    item.keyword = item.keyword.trim();
+                }
+                return true;
+            },
+            addParseValue() {
+                this.currentTask.parseValues.push({
+                    parseType: '',  // 解析类型
+                    key: '',        // 字段名
+                    index: 0,        // 列索引
+                    keyword: '',      // 正则匹配表达式
+                    regexMode: 0,     // 正则匹配模式
+                });
+            },
+            removeParseValue(index) {
+                this.currentTask.parseValues.splice(index, 1);
+            },
+            addFixedValue() {
+                this.currentTask.fixedValues.push({ source: '', target: '' });
+            },
+            removeFixedValue(index) {
+                this.currentTask.fixedValues.splice(index, 1);
+            },
+            async toggleTaskStatus() {
+                try {
+                    this.currentTask.isActive = !this.currentTask.isActive;
+                    await window.api.updateTaskStatus(
+                        this.currentTask.id,
+                        this.currentTask.isActive
+                    );
+                    await this.loadTasks();
+                    this.$message.success('更新状态成功');
+                } catch (error) {
+                    this.$message.error('更新状态失败');
+                    this.currentTask.isActive = !this.currentTask.isActive; // 恢复状态
+                }
+            },
+            // todo: 间隔多少时间
+            handleScheduleTypeChange(value) {
+                // 切换到随机
+                if (value === 'random') {
+                    this.currentTask.days = 1;
+                    this.currentTask.execTime = '';
+                    this.currentTask.schedule = '';
+                }
+                // 切换到定时
+                else if (value === 'fixed') {
+                    // 如果之前没有设置过时间，设置默认值
+                    if (!this.currentTask.execTime) {
+                        this.currentTask.execTime = '00:00';
+                    }
+                    this.updateSchedule();
+                }
+                // 间隔多少时间
+                else if (value === 'interval') {
+                    console.log('interval:', this.currentTask.interval);
+                }
+            },
+            // 更新cron表达式
+            updateSchedule() {
+                if (this.currentTask.scheduleType === 'fixed' && this.currentTask.execTime) {
+                    const [hours, minutes] = this.currentTask.execTime.split(':');
+                    this.currentTask.schedule = `${minutes} ${hours} */${this.currentTask.days} * *`;
+                } else {
+                    this.currentTask.schedule = '';
+                }
+            },
+            // 自定义行列号
+            customRowIndex(index) {
+                return index;
+            },
+            async initializeTask() {
+                const storedTaskId = localStorage.getItem('currentTaskId');
+                if (storedTaskId) {
+                    // 编辑已有任务
+                    this.currentTask.id = JSON.parse(storedTaskId);
+                } else {
+                    // 创建新任务
+                    this.createNewTask();
+                }
+            },
+        },
+        async mounted() {
+            try {
+                await this.initializeTask();
+                await this.loadTasks();
+                // 使用 nextTick 确保 DOM 更新
+                this.$nextTick(() => {
+                    this.pageReady = true;
+                });
+            } catch (error) {
+                console.error('Page initialization failed:', error);
+                this.$message.error('页面加载失败');
+            }
+        }
+    });
+</script>
+</html>

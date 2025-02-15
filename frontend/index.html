@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINTool - 任务管理</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
+    <!-- 预加载另一个页面 -->
+    <link rel="prefetch" href="index.html">
+    <link rel="prefetch" href="edit.html">
+    <style>
+        .dashboard {
+            margin-bottom: 20px;
+        }
+
+       .dashboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+
+       .preview-result-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1200px;
+            background-color: white;
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 4px;
+            max-height: 80vh; /* 设置最大高度为视口高度的 80% */
+            overflow-y: auto; /* 当内容超出最大高度时显示垂直滚动条 */
+        }
+
+       .preview-result-container .el-table {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" v-cloak>
+        <div v-if="!pageReady" class="page-loading">
+            <i class="el-icon-loading"></i>
+        </div>
+        <!-- 预览结果容器 -->
+        <div v-if="previewDialogVisible" class="preview-result-container">
+            <el-button
+                type="text"
+                icon="el-icon-close"
+                @click="handleClosePreviewDialog">
+            </el-button>
+            <h3>预览结果</h3>
+            <el-table
+                :data="previewData"
+                style="width: 100%"
+                border
+                stripe>
+                <el-table-column
+                    v-for="(key, index) in previewColumns"
+                    :key="index"
+                    :prop="key"
+                    :label="key">
+                </el-table-column>
+            </el-table>
+        </div>
+        <transition name="fade">
+            <div v-if="pageReady" class="container">
+                <!-- 监控仪表盘 -->
+                <div class="dashboard">
+                    <el-card>
+                        <template #header>
+                            <span>任务统计信息</span>
+                            <el-button
+                                type="text"
+                                icon="el-icon-refresh"
+                                @click="refreshData">
+                                刷新
+                            </el-button>
+                        </template>
+                        <div class="dashboard-item">
+                            <span>总任务数:</span>
+                            <span>{{ taskStats.total_tasks }}</span>
+                        </div>
+                        <div class="dashboard-item">
+                            <span>正在运行的任务数:</span>
+                            <span>{{ taskStats.total_active_tasks }}</span>
+                        </div>
+                        <div class="dashboard-item">
+                            <span>已停止的任务数:</span>
+                            <span>{{ taskStats.total_inactive_tasks }}</span>
+                        </div>
+                        <div class="dashboard-item">
+                            <span>成功的任务数:</span>
+                            <span>{{ taskStats.total_success }}</span>
+                        </div>
+                        <div class="dashboard-item">
+                            <span>失败的任务数:</span>
+                            <span>{{ taskStats.total_failed }}</span>
+                        </div>
+                    </el-card>
+                </div>
+
+                <!-- 页面标题 -->
+                <div class="page-header">
+                    <div class="search-bar">
+                        <el-input
+                            v-model="searchQuery"
+                            placeholder="搜索任务名称或URL..."
+                            prefix-icon="el-icon-search"
+                            clearable
+                            style="width: 300px;">
+                        </el-input>
+                        <el-button type="primary" icon="el-icon-plus" @click="createTask">
+                            新建任务
+                        </el-button>
+                        <!-- 添加文件选择输入框和上传按钮 -->
+                        <input type="file" id="jsonFileInput" @change="handleFileSelect" accept=".json">
+                        <el-button type="success" :loading="isUploading" :disabled="!selectedFile || isUploading"
+                            @click="uploadJsonFile">上传 JSON 文件</el-button>
+                        <!-- 新增批量运行任务按钮 -->
+                        <el-button type="warning" :disabled="!selectedTaskIds.length" @click="batchRunTasks">
+                            批量运行任务
+                        </el-button>
+                        <!-- 新增批量下载 JSON 文件按钮 -->
+                        <el-button type="info" :disabled="!selectedTaskIds.length" @click="batchDownloadTasks">
+                            批量下载 JSON 文件
+                        </el-button>
+                    </div>
+                </div>
+
+                <!-- 任务列表 -->
+                <div class="table-container">
+                    <el-table
+                        :data="paginatedFilteredTasks"
+                        style="width: 100%"
+                        v-loading="loading"
+                        border
+                        stripe
+                        @selection-change="handleSelectionChange">
+                        <!-- 新增复选框列 -->
+                        <el-table-column type="selection" width="55"></el-table-column>
+                        <el-table-column
+                            prop="title"
+                            label="任务名称"
+                            min-width="180">
+                            <template slot-scope="scope">
+                                <el-tooltip :content="scope.row.title" placement="top">
+                                    <span>{{ scope.row.title }}</span>
+                                </el-tooltip>
+                            </template>
+                        </el-table-column>
+                        <el-table-column
+                            prop="url"
+                            label="URL"
+                            min-width="280">
+                            <template slot-scope="scope">
+                                <el-tooltip :content="scope.row.url" placement="top">
+                                    <a :href="scope.row.url" target="_blank" class="url-cell">
+                                        {{ scope.row.url }}
+                                    </a>
+                                </el-tooltip>
+                            </template>
+                        </el-table-column>
+                        <el-table-column
+                            prop="scheduleType"
+                            label="执行方式"
+                            min-width="120">
+                            <template slot-scope="scope">
+                                <el-tag size="medium" :type="getScheduleTypeTag(scope.row.scheduleType)">
+                                    {{ scheduleTypeMap[scope.row.scheduleType] }}
+                                </el-tag>
+                            </template>
+                        </el-table-column>
+                        <el-table-column
+                            prop="isActive"
+                            label="状态"
+                            min-width="100">
+                            <template slot-scope="scope">
+                                <el-tag :type="scope.row.isActive ? 'success' : 'danger'">
+                                    {{ scope.row.isActive ? '运行中' : '已停止' }}
+                                </el-tag>
+                            </template>
+                        </el-table-column>
+                        <el-table-column
+                            label="操作"
+                            min-width="200"
+                            fixed="right">
+                            <template slot-scope="scope">
+                                <div class="action-button-group">
+                                    <el-tooltip content="编辑任务" placement="top">
+                                        <el-button
+                                            size="mini"
+                                            type="primary"
+                                            plain
+                                            icon="el-icon-edit"
+                                            @click="editTask(scope.row)">
+                                        </el-button>
+                                    </el-tooltip>
+                                    <el-tooltip :content="scope.row.isActive ? '停止任务' : '启动任务'" placement="top">
+                                        <el-button
+                                            size="mini"
+                                            :type="scope.row.isActive ? 'danger' : 'success'"
+                                            plain
+                                            :icon="scope.row.isActive ? 'el-icon-video-pause' : 'el-icon-video-play'"
+                                            @click="toggleTaskStatus(scope.row)">
+                                        </el-button>
+                                    </el-tooltip>
+                                    <el-tooltip content="删除任务" placement="top">
+                                        <el-button
+                                            size="mini"
+                                            type="danger"
+                                            plain
+                                            icon="el-icon-delete"
+                                            @click="deleteTask(scope.row)">
+                                        </el-button>
+                                    </el-tooltip>
+                                    <!-- 新增预览按钮 -->
+                                    <el-tooltip content="预览结果" placement="top">
+                                        <el-button
+                                            size="mini"
+                                            type="info"
+                                            plain
+                                            icon="el-icon-view"
+                                            @click="previewTaskResults(scope.row.id)">
+                                        </el-button>
+                                    </el-tooltip>
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <template slot="empty">
+                            <div class="empty-data">
+                                <i class="el-icon-document" style="font-size: 48px; margin-bottom: 16px;"></i>
+                                <p>暂无任务数据</p>
+                            </div>
+                        </template>
+                    </el-table>
+                </div>
+                <!-- 分页组件 -->
+                <div class="pagination-container">
+                    <el-pagination
+                        @size-change="handleSizeChange"
+                        @current-change="handleCurrentChange"
+                        :current-page="currentPage"
+                        :page-sizes="[5, 10, 20, 30]"
+                        :page-size="pageSize"
+                        layout="total, sizes, prev, pager, next, jumper"
+                        :total="totalCount">
+                    </el-pagination>
+                </div>
+            </div>
+        </transition>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                pageReady: false,
+                tasks: [],
+                loading: false,
+                searchQuery: '',
+                scheduleTypeMap: {
+                    'fixed': '定时',
+                    'interval': '间隔',
+                    'random': '随机'
+                },
+                currentPage: 1,
+                pageSize: 5,
+                totalCount: 0,
+                selectedFile: null,
+                isUploading: false,
+                selectedTaskIds: [],
+                previewDialogVisible: false,
+                previewData: [],
+                previewColumns: [],
+                taskStats: {}
+            },
+            computed: {
+                paginatedFilteredTasks() {
+                    return this.tasks;
+                }
+            },
+            methods: {
+                getScheduleTypeTag(type) {
+                    const tagMap = {
+                        'fixed': 'primary',
+                        'interval': 'success',
+                        'random': 'warning'
+                    };
+                    return tagMap[type] || 'info';
+                },
+                async loadTasks() {
+                    this.loading = true;
+                    try {
+                        const response = await window.api.getTasks({
+                            page: this.currentPage,
+                            per_page: this.pageSize,
+                            search_query: this.searchQuery
+                        });
+                        this.tasks = response.tasks;
+                        this.totalCount = response.total_count;
+                    } catch (error) {
+                        this.$message.error({
+                            message: '加载任务失败',
+                            duration: 3000
+                        });
+                        console.error('Load tasks error:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                createTask() {
+                    localStorage.removeItem('currentTaskId');
+                    window.location.href = 'edit.html';
+                },
+                editTask(task) {
+                    localStorage.setItem('currentTaskId', JSON.stringify(task.id));
+                    window.location.href = `edit.html?id=${task.id}`;
+                },
+                async toggleTaskStatus(task) {
+                    try {
+                        await window.api.updateTaskStatus(task.id, !task.isActive);
+                        await this.loadTasks();
+                        this.$message.success({
+                            message: `任务${task.isActive ? '停止' : '启动'}成功`,
+                            duration: 2000
+                        });
+                    } catch (error) {
+                        this.$message.error({
+                            message: `任务${task.isActive ? '停止' : '启动'}失败`,
+                            duration: 3000
+                        });
+                        console.error('Toggle task status error:', error);
+                    }
+                },
+                async deleteTask(task) {
+                    try {
+                        await this.$confirm('此操作将永久删除该任务, 是否继续?', '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+                        await window.api.deleteTask(task.id);
+                        await this.loadTasks();
+                        this.$message.success({
+                            message: '删除成功',
+                            duration: 2000
+                        });
+                    } catch (error) {
+                        if (error!== 'cancel') {
+                            this.$message.error({
+                                message: '删除失败',
+                                duration: 3000
+                            });
+                            console.error('Delete task error:', error);
+                        }
+                    }
+                },
+                handleSizeChange(newSize) {
+                    this.pageSize = newSize;
+                    this.loadTasks();
+                },
+                handleCurrentChange(newPage) {
+                    this.currentPage = newPage;
+                    this.loadTasks();
+                },
+                handleFileSelect(event) {const file = event.target.files[0];
+            if (file && file.type === 'application/json') {
+                this.selectedFile = file;
+            } else {
+                this.$message.error('请选择有效的 JSON 文件');
+                this.selectedFile = null;
+            }
+            },
+            async uploadJsonFile() {
+                if (!this.selectedFile) {
+                    this.$message.error('请选择一个 JSON 文件');
+                    return;
+                }
+                this.isUploading = true;
+                try {
+                    const reader = new FileReader();
+                    reader.readAsText(this.selectedFile);
+                    await new Promise((resolve, reject) => {
+                        reader.onload = () => {
+                            try {
+                                const tasks = JSON.parse(reader.result);
+                                resolve(tasks);
+                            } catch (error) {
+                                reject(new Error('无效的 JSON 文件'));
+                            }
+                        };
+                        reader.onerror = () => {
+                            reject(new Error('读取文件时出错'));
+                        };
+                    });
+                    const response = await window.api.batchCreateTasks(JSON.parse(reader.result));
+                    this.$message.success('任务批量创建成功');
+                    await this.loadTasks();
+                } catch (error) {
+                    this.$message.error(error.message);
+                    console.error('上传 JSON 文件时出错:', error);
+                } finally {
+                    this.isUploading = false;
+                    this.selectedFile = null;
+                }
+            },
+            handleSelectionChange(selection) {
+                this.selectedTaskIds = selection.map(task => task.id);
+            },
+            async batchRunTasks() {
+                try {
+                    const response = await window.api.batchRunTasks(this.selectedTaskIds);
+                    this.$message.success('批量运行任务请求已发送');
+                    console.log('批量运行任务结果:', response);
+                } catch (error) {
+                    this.$message.error('批量运行任务失败');
+                    console.error('批量运行任务出错:', error);
+                }
+            },
+            async batchDownloadTasks() {
+                try {
+                    const response = await window.api.batchDownloadTasks(this.selectedTaskIds);
+                    const url = window.URL.createObjectURL(new Blob([response]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', 'batch_download.json');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    this.$message.error('批量下载 JSON 文件失败');
+                    console.error('批量下载 JSON 文件出错:', error);
+                }
+            },
+            async previewTaskResults(taskId) {
+                try {
+                    const response = await window.api.previewTaskResults(taskId);
+                    if (response.success) {
+                        this.previewData = response.result;
+                        if (this.previewData.length > 0) {
+                            this.previewColumns = Object.keys(this.previewData[0]);
+                        }
+                        this.previewDialogVisible = true;
+                    } else {
+                        this.$message.error(response.error);
+                    }
+                } catch (error) {
+                    this.$message.error('获取预览结果失败');
+                    console.error('获取预览结果出错:', error);
+                }
+            },
+            handleClosePreviewDialog() {
+                this.previewDialogVisible = false;
+            },
+            async loadTaskStats() {
+                try {
+                    const response = await window.api.getTaskStats();
+                    this.taskStats = response;
+                } catch (error) {
+                    this.$message.error('获取任务统计信息失败');
+                    console.error('获取任务统计信息出错:', error);
+                }
+            },
+            async refreshData() {
+                await this.loadTasks();
+                await this.loadTaskStats();
+                this.$message.success('数据刷新成功');
+            }
+            },
+            async mounted() {
+                try {
+                    await this.loadTasks();
+                    await this.loadTaskStats();
+                    this.$nextTick(() => {
+                        this.pageReady = true;
+                    });
+                } catch (error) {
+                    this.$message.error({
+                        message: '页面加载失败',
+                        duration: 3000
+                    });
+                    console.error('Page load error:', error);
+                }
+            }
+            });
+    </script>
+</body>
+
+</html>
