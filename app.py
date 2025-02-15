@@ -92,83 +92,48 @@ def get_running_tasks():
     running_tasks = [{'id': job.id, 'next_run_time': job.next_run_time } for job in jobs]
     return jsonify({'success': True, 'running_tasks': running_tasks})
 
-
 @app.route('/api/tasks/<string:task_id>/parse', methods=['POST'])
-def parse_task(task_id):
+def parse_task(task_id):    # 预览
     Task = Query()
     task = tasks_table.get(Task.id == task_id)
     if not task:
         return jsonify({'success': False, 'error': '任务不存在'}), 404
-    parser = ParserFactory.get_parser(task['dataFormat'])
-    table = parser.parse(
-        task['url'],
-        int(task.get('tableType', 0))
-    )
-    return jsonify({'success': True, 'table': table})
+
+    max_count = min(task['maxCount'], 20)  # 最大返回20条数据
+    try:
+        table = execute_task_parsing(task, max_count)
+        return jsonify({'success': True, 'table': table})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/tasks/<string:task_id>/run', methods=['POST'])
 def run_task(task_id):
+    Task = Query()
+    task = tasks_table.get(Task.id == task_id)
+    if not task:
+        return jsonify({'success': False, 'error': '任务不存在'}), 404
+
+    print(f'===========正在运行任务: {task_id}============')
+
+    os.makedirs('data', exist_ok=True)
+
+    max_count = task['maxCount']  # 获取最大数据量
     try:
-        Task = Query()
-        task = tasks_table.get(Task.id == task_id)
-        if not task:
-            return jsonify({'success': False, 'error': '任务不存在'}), 404
+        result = execute_task_parsing(task, max_count)
 
-        os.makedirs('data', exist_ok=True)
-
-        print(f'===========正在运行任务: {task_id}============')
-
-        result = []
-        parse_rules = task['parseValues']
-        other_rules = task['otherValues']
-        dataFormat = task['dataFormat']
-        print(f'parse_rules: {parse_rules}')
-        print(f'other_rules: {other_rules}')
-
+        # 保存结果
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        columns = {rule['key']: rule['index'] for rule in parse_rules}
-        patterns = {rule['key']: rule['pattern'] for rule in parse_rules}
-        maxCount = task['maxCount'] # 最大爬取数量
-        if (dataFormat == 'html'):
-            xpaths = task['xpaths']
-            parser = HTMLParser(task['url'], xpaths['table'], xpaths['row'], xpaths['next_page'], patterns, maxCount)
-            content = parser.get_content()    # 其他值的正则解析用
-            res = parser.parse()
-            # 添加其他值
-            result = addOtherValues(res, other_rules, content, current_time)
-        else:
-            parser = ParserFactory.get_parser(dataFormat)
-
-            res = parser.parse(
-                task['url'],
-                task['parseType'],
-                columns,
-                patterns,
-                task['table_pattern'],
-                maxCount
-            )
-            content = parser.get_content()    # 其他值的正则解析用
-
-            # 添加其他值
-            result = addOtherValues(res, other_rules, content, current_time)
-
-        print(f'========命名文件======')
-        output_dir = os.path.join('data', str(task_id))
-
-        os.makedirs(output_dir, exist_ok=True)
         formatted_time = current_time.replace(' ', '_').replace(':', '.')
-
         filename = f'{formatted_time}.json'
+        output_dir = os.path.join('data', str(task_id))
+        os.makedirs(output_dir, exist_ok=True)
         filepath = os.path.join(output_dir, filename)
 
-        print(f'========保存文件======')
-        try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(result, f, ensure_ascii=False, indent=2)
-        except Exception as file_error:
-            return jsonify({'success': False, 'error': f'保存文件时出错: {str(file_error)}'}), 500
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
 
-        # 更新 lastRunTime 字段
+        # 更新任务的 lastRunTime
+        Task = Query()
         tasks_table.update({'lastRunTime': current_time}, Task.id == task_id)
 
         return jsonify({
@@ -179,10 +144,29 @@ def run_task(task_id):
                 'resultFile': filename
             }
         })
-
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def execute_task_parsing(task, max_count):
+    # 根据任务设置提取解析规则
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    parse_rules = task['parseValues']
+    other_rules = task['otherValues']
+    columns = {rule['key']: rule['index'] for rule in parse_rules}
+    patterns = {rule['key']: rule['pattern'] for rule in parse_rules}
+
+    # 根据数据格式选择解析器
+    if task['dataFormat'] == 'html':
+        xpaths = task['xpaths']
+        parser = HTMLParser(task['url'], xpaths['table'], xpaths['row'], xpaths['next_page'], patterns, max_count)
+        table = parser.parse()
+    else:
+        parser = ParserFactory.get_parser(task['dataFormat'])
+        table = parser.parse(task['url'], task['parseType'], columns, patterns, task['table_pattern'], max_count)
+
+    # 添加其他值
+    result = addOtherValues(table, other_rules, parser.get_content(), current_time)
+    return result
 
 def run_scheduled_task(task_id):
     with app.app_context():

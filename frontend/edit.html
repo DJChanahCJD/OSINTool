@@ -196,14 +196,28 @@
 
                 <!-- 表格解析结果对话框 -->
                 <el-dialog :visible.sync="dialogVisible" title="解析结果" width="80%">
-                    <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
-                        <!-- 自定义行列号 -->
+                    <!-- <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
                         <el-table-column type="index" label="" :index="customRowIndex" width="60">
                             <template slot-scope="scope"><span style="font-weight: bold; color: #909399">行{{ scope.$index }}</span></template>
                         </el-table-column>
                         <el-table-column v-for="(col, index) in tableColumns" :key="index" :label="'列' + (index)" :prop="index.toString()" :width="100">
                         </el-table-column>
+                    </el-table> -->
+                    <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
+                        <el-table-column type="index" label="行号" :index="customRowIndex" width="60">
+                            <template slot-scope="scope">
+                                <span style="font-weight: bold; color: #909399">行{{ scope.$index + 1 }}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column
+                            v-for="(col, index) in tableColumns"
+                            :key="index"
+                            :label="col.label"
+                            :prop="col.prop"
+                            :width="100"
+                        ></el-table-column>
                     </el-table>
+
                 </el-dialog>
             </div>
         </transition>
@@ -330,7 +344,6 @@
                     this.$message.error('复制失败: ' + error.message);
                 }
             },
-            // 预览解析结果
             async showPreview() {
                 if (!this.currentTask.id) {
                     this.$message.warning('请先选择任务');
@@ -343,16 +356,28 @@
                     duration: 0,
                     showClose: true
                 });
+
                 try {
                     const response = await window.api.parseTask(this.currentTask.id);
                     if (response.success) {
                         this.parsedTable = response.table;
-                        this.tableColumns = this.parsedTable[0].map((_, index) => ({ label: `列${index}`, prop: index.toString() }));
+                        // 打印前5行，检查数据格式
+                        console.log(this.parsedTable.slice(0, 5));
+
+                        // 确保获取第一个数据行的字段名作为列标题
+                        const firstRow = this.parsedTable[0];
+                        if (firstRow) {
+                            this.tableColumns = Object.keys(firstRow).map(key => ({
+                                label: key,  // 使用字段名作为列标题
+                                prop: key    // 使用字段名作为列的prop
+                            }));
+                        }
+
                         this.dialogVisible = true;
                     } else {
                         this.$message.error('解析失败: ' + response.error);
                     }
-                }catch (error) {
+                } catch (error) {
                     this.$message.error('解析失败: ' + error.message);
                 } finally {
                     loadingMessage.close();
