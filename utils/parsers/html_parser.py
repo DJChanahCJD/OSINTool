@@ -20,6 +20,10 @@ class HTMLParser:
         self.next_page_xpath = next_page_xpath
         self.patterns = patterns
         self.pages = pages
+        self.content = None
+
+    def get_content(self):
+        return self.content
 
     def parse(self):
         # 创建 edgeOptions 对象
@@ -49,11 +53,11 @@ class HTMLParser:
 
         while page_count < self.pages:
             # 获取当前页面源码
-            html_content = driver.page_source
+            self.content = driver.page_source
             print("获取页面源码...")
 
             # 解析数据
-            results = self.parse_table_with_patterns(html_content)
+            results = self.parse_table_with_patterns(self.content)
             all_results.extend(results)
 
             try:
@@ -75,6 +79,10 @@ class HTMLParser:
             page_count += 1
 
         driver.quit()
+
+        print("======解析完成=======")
+        print(f"总数据量: {len(all_results)}")
+        print(f"前5行: {all_results[:5]}")
         return all_results
 
     def parse_table_with_patterns(self, html_content):

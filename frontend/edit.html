@@ -19,8 +19,8 @@
             display: none !important;
         }
     </style>
-    <link rel="prefetch" href="index.html">
-    <link rel="prefetch" href="edit.html">
+    <link rel="preload" href="index.html">
+    <link rel="preload" href="edit.html">
     <link rel="stylesheet" href="./styles/edit.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
@@ -89,17 +89,16 @@
                         <el-row :gutter="10">
                             <el-col :span="6">
                                 <el-select v-model="currentTask.dataFormat" placeholder="请选择数据格式">
-                                    <el-option label="TXT" value="txt"></el-option>
-                                    <el-option label="HTML" value="html"></el-option>
-                                    <el-option label="PHP" value="php"></el-option>
-                                    <el-option label="CSV" value="csv"></el-option>
+                                    <el-option label="文本类（TXT）" value="txt"></el-option>
+                                    <el-option label="表格类（CSV）" value="csv"></el-option>
+                                    <el-option label="网页类（HTML）" value="html"></el-option>
                                 </el-select>
                             </el-col>
-                            <el-col v-if="currentTask.dataFormat === 'html'" :span="6">
-                                <el-select v-model="currentTask.tableType" placeholder="（废案，待删除，可换为解析方式（request, driver））请选择表格类型">
-                                    <el-option label="table" value="0"></el-option>
-                                    <el-option label="ol/ul/li" value="1"></el-option>
-                                    <el-option label="div" value="2"></el-option>
+                            <el-col :span="6">
+                                <el-select v-model="currentTask.parseType" placeholder="表格解析模式">
+                                    <!-- :value="0" 可判定数字, 而value="0"或value=0都会判定为字符串 -->
+                                    <el-option label="列索引（从0开始）" :value="0" v-if="currentTask.dataFormat != 'html'"></el-option>
+                                    <el-option label="正则匹配" :value="1"></el-option>
                                 </el-select>
                             </el-col>
                             <el-col :span="10">
@@ -122,41 +121,20 @@
                             </el-col>
                         </el-row>
                     </el-form-item>
-                    <el-form-item label="解析值">
+                    <el-form-item label="table_pattern" v-if="currentTask.dataFormat === 'txt'">
+                        <el-input v-model="currentTask.table_pattern" placeholder="表格的正则匹配，如: (\S+)\s+#\s+domain - (.*)"></el-input>
+                    </el-form-item>
+                    <el-form-item label="列解析">
                         <div v-for="(item, index) in currentTask.parseValues" :key="index" class="dynamic-row">
                             <el-row :gutter="10" type="flex" align="middle">
                                 <el-col :span="8">
                                     <el-input v-model="item.key" placeholder="解析字段"></el-input>
                                 </el-col>
-                                <el-col :span="4">
-                                    <el-select v-model="item.parseType" placeholder="解析类型">
-                                        <el-option label="列索引（从0开始）" value="column" v-if="currentTask.dataFormat != 'html'"></el-option>
-                                        <el-option label="正则匹配" value="regex"></el-option>
-                                        <el-option label="其他" value="other"></el-option>
-                                    </el-select>
-                                </el-col>
                                 <el-col :span="10">
-                                    <el-input-number v-if="item.parseType === 'column'" v-model="item.index" :min="0"
+                                    <el-input-number v-if="currentTask.parseType === 'column'" v-model="item.index" :min="0"
                                         placeholder="列索引">
                                     </el-input-number>
-                                    <template v-else-if="item.parseType === 'regex'">
-                                        <el-row :gutter="10">
-                                            <el-col :span="10">
-                                                <el-select v-model="item.regexMode" placeholder="匹配模式">
-                                                    <el-option label="findOne" value="0" default></el-option>
-                                                    <el-option label="findAll" value="1"></el-option>
-                                                </el-select>
-                                            </el-col>
-                                            <el-col :span="14">
-                                                <el-input v-model="item.keyword" placeholder="正则表达式，如：(简单|中等|困难)"></el-input>
-                                            </el-col>
-                                        </el-row>
-                                    </template>
-                                    <!-- 注意：可图方便，这里regex和other共用keyword这个键 -->
-                                    <el-select v-else-if="item.parseType === 'other'" v-model="item.keyword"
-                                        placeholder="其他解析值">
-                                        <el-option label="当前时间" value="currentTime"></el-option>
-                                    </el-select>
+                                    <el-input v-else v-model="item.pattern" placeholder="正则表达式，如：(简单|中等|困难)"></el-input>
                                 </el-col>
                                 <el-col :span="2">
                                     <el-button type="danger" icon="el-icon-delete" @click="removeParseValue(index)"></el-button>
@@ -166,21 +144,36 @@
                         <el-button type="primary" icon="el-icon-plus" @click="addParseValue">添加解析值</el-button>
                     </el-form-item>
 
-                    <el-form-item label="固定值">
-                        <div v-for="(item, index) in currentTask.fixedValues" :key="index" class="dynamic-row">
+                    <el-form-item label="其他值">
+                        <div v-for="(item, index) in currentTask.otherValues" :key="index" class="dynamic-row">
                             <el-row :gutter="10" type="flex" align="middle">
-                                <el-col :span="11">
+                                <el-col :span="7">
                                     <el-input v-model="item.source" placeholder="请输入源值"></el-input>
                                 </el-col>
+                                <el-col :span="4">
+                                    <el-select v-model="item.valueType" placeholder="取值类型">
+                                        <el-option label="固定值" value="fixed"></el-option>
+                                        <el-option label="正则匹配" value="regex"></el-option>
+                                        <el-option label="特殊值" value="special"></el-option>
+                                    </el-select>
+                                </el-col>
                                 <el-col :span="11">
-                                    <el-input v-model="item.target" placeholder="请输入目标值"></el-input>
+                                    <el-input v-if="item.valueType != 'special'" v-model="item.target" placeholder="请输入固定值或正则表达式"></el-input>
+                                    <el-select v-else v-model="item.target" placeholder="请选择特殊值">
+                                        <el-option
+                                            v-for="option in specialValues"
+                                            :key="option.value"
+                                            :label="option.label"
+                                            :value="option.value"
+                                        ></el-option>
+                                    </el-select>
                                 </el-col>
                                 <el-col :span="2">
-                                    <el-button type="danger" icon="el-icon-delete" @click="removeFixedValue(index)"></el-button>
+                                    <el-button type="danger" icon="el-icon-delete" @click="removeOtherValues(index)"></el-button>
                                 </el-col>
                             </el-row>
                         </div>
-                        <el-button type="primary" icon="el-icon-plus" @click="addFixedValue" style="margin-bottom: 40px;">添加固定值</el-button>
+                        <el-button type="primary" icon="el-icon-plus" @click="addOtherValues" style="margin-bottom: 40px;">添加其他值</el-button>
                     </el-form-item>
                 </el-form>
                 <div class="action-buttons">
@@ -227,7 +220,8 @@
                 execTime: '',
                 schedule: '', // 最终存储的cron表达式
                 dataFormat: '',
-                tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                parseType: 1, // 0: 列解析, 1:正则匹配
+                table_pattern: '',
                 interval: 1, // 间隔时间（分钟）
                 xpaths: {
                     table: '',  // 表格XPath
@@ -235,10 +229,13 @@
                     next_page: '' // 下一页按钮XPath
                 },
                 parseValues: [],
-                fixedValues: [],
+                otherValues: [],
                 isActive: false,
                 startRow: 0,
             },
+            specialValues: [
+                { value: 'attack_time', label: '爬取时间' },
+            ],
             dialogVisible: false,
             parsedTable: [],
             tableColumns: [],
@@ -300,7 +297,8 @@
                     execTime: '',
                     schedule: '',
                     dataFormat: 'txt', // 设置默认格式
-                    tableType: '0', // 0: table, 1: ol/ul/li, 2: div
+                    parseType: 1, // 0: 列索引，1: 正则匹配
+                    table_pattern: '',
                     xpaths: {
                         table: '',  // 表格XPath
                         row: '',    // 行XPath
@@ -308,7 +306,7 @@
                     },
                     interval: 1, // 间隔时间（分钟）
                     parseValues: [],
-                    fixedValues: [],
+                    otherValues: [],
                     isActive: false,
                     startRow: 0,
                 };
@@ -401,17 +399,8 @@
 
                     const currentIndex = this.tasks.findIndex(task => task.id === this.currentTask.id);
                     await window.api.deleteTask(this.currentTask.id);
-                    await this.loadTasks();
-
-                    if (this.tasks.length > 0) {
-                        const nextTask = this.tasks[currentIndex] || this.tasks[this.tasks.length - 1];
-                        this.currentTask.id = nextTask.id;
-                        await this.loadTask(this.currentTask.id);
-                    } else {
-                        this.createNewTask(); // 如果没有任务了，创建一个新的空任务表单
-                    }
-
                     this.$message.success('删除成功');
+                    await this.loadTasks();
                 } catch (error) {
                     if (error !== 'cancel') {
                         this.$message.error('删除失败: ' + error.message);
@@ -465,7 +454,33 @@
                 }
 
                 // 正则验证
-                for (let item of this.currentTask.parseValues) {
+                if (!this.currentTask.parseValues || this.currentTask.parseValues.length === 0) {
+                    this.$message.warning('请添加解析值');
+                    return false;
+                }
+                if (this.currentTask.parseValues.some(item => !item.key.trim())) {
+                    this.$message.warning('解析字段不能为空');
+                    return false;
+                }
+                // 正则验证
+                if (!this.currentTask.otherValues || this.currentTask.otherValues.length === 0) {
+                    this.$message.warning('请添加特殊值');
+                    return false;
+                }
+                if (this.currentTask.otherValues.some(item =>!item.source.trim() ||!item.target.trim())) {
+                    this.$message.warning('源值和目标值不能为空');
+                    return false;
+                }
+                if (this.currentTask.parseType === '1') {
+                    for (let item of this.currentTask.parseValues) {
+                        try {
+                            new RegExp(item.pattern);
+                        } catch (error) {
+                            this.$message.warning('正则表达式不合法，请先在https://regex101.com/ 验证是否匹配');
+                        }
+                    }
+                }
+                /*for (let item of this.currentTask.parseValues) {
                     if (item.parseType === 'regex' && item.keyword &&!item.keyword.trim()) {
                         this.$message.warning('正则表达式不能为空');
                         return false;
@@ -482,26 +497,28 @@
                     // 去掉多余空格
                     item.key = item.key.trim();
                     item.keyword = item.keyword.trim();
-                }
+                }*/
                 return true;
             },
             addParseValue() {
                 this.currentTask.parseValues.push({
-                    parseType: '',  // 解析类型
                     key: '',        // 字段名
                     index: 0,        // 列索引
-                    keyword: '',      // 正则匹配表达式
-                    regexMode: 0,     // 正则匹配模式
+                    pattern: '',      // 正则匹配表达式
                 });
             },
             removeParseValue(index) {
                 this.currentTask.parseValues.splice(index, 1);
             },
-            addFixedValue() {
-                this.currentTask.fixedValues.push({ source: '', target: '' });
+            addOtherValues() {
+                this.currentTask.otherValues.push({
+                    source: '',
+                    valueType: 'fixed',
+                    target: ''
+                });
             },
-            removeFixedValue(index) {
-                this.currentTask.fixedValues.splice(index, 1);
+            removeOtherValues(index) {
+                this.currentTask.otherValues.splice(index, 1);
             },
             async toggleTaskStatus() {
                 try {
@@ -513,11 +530,10 @@
                     await this.loadTasks();
                     this.$message.success('更新状态成功');
                 } catch (error) {
-                    this.$message.error('更新状态失败');
+                    this.$message.error('更新状态失败，请检查网络连接');
                     this.currentTask.isActive = !this.currentTask.isActive; // 恢复状态
                 }
             },
-            // todo: 间隔多少时间
             handleScheduleTypeChange(value) {
                 // 切换到随机
                 if (value === 'random') {
@@ -547,7 +563,7 @@
                     this.currentTask.schedule = '';
                 }
             },
-            // 自定义行列号
+            // 自定义预览行号
             customRowIndex(index) {
                 return index;
             },

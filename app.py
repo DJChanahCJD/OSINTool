@@ -8,7 +8,7 @@ import os
 import shortuuid
 from utils.parser_factory import ParserFactory
 from utils.parsers.html_parser import HTMLParser
-from utils.regex_matcher import parse_keywords, parse_first_keyword
+from utils.regex_matcher import match_one, match_all
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # https://regex101.com/
@@ -120,59 +120,33 @@ def run_task(task_id):
 
         result = []
         parse_rules = task['parseValues']
-        fixed_rules = task['fixedValues']
+        other_rules = task['otherValues']
         dataFormat = task['dataFormat']
         print(f'parse_rules: {parse_rules}')
-        print(f'fixed_rules: {fixed_rules}')
+        print(f'other_rules: {other_rules}')
 
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        columns = {rule['key']: rule['index'] for rule in parse_rules}
+        patterns = {rule['key']: rule['pattern'] for rule in parse_rules}
         if (dataFormat == 'html'):
             xpaths = task['xpaths']
-            patterns = {rule['key']: rule['keyword'] for rule in parse_rules}
             parser = HTMLParser(task['url'], xpaths['table'], xpaths['row'], xpaths['next_page'], patterns)
+            content = parser.get_content()    # 其他值的正则解析用
             res = parser.parse()
-
-            print(f'res前5行: {res[:5]}')
-            # 添加特殊值
-            for item in res:
-                for rule in fixed_rules:
-                    item[rule['source']] = rule['target']
-                result.append(item)
-            print(f'if 结束')
+            # 添加其他值
+            result = addOtherValues(res, other_rules, content, current_time)
         else:
             parser = ParserFactory.get_parser(dataFormat)
 
-            table = parser.parse(
+            res = parser.parse(
                 task['url'],
-                int(task.get('tableType', 0))
+                task['parseType'],
+                columns,
+                patterns,
             )
-            content = parser.content
-            print(f'table前5行:')
-            for row in table[:5]:
-                print(row)
-            print(f'=======================')
 
-            memo = {}
-            startRow = task.get('startRow', 0)
-            for row in table[startRow:]:
-                temp = {}
-                for rule in parse_rules:
-                    value = None
-                    if rule['parseType'] == 'column':
-                        value = row[rule['index']]
-                    elif rule['parseType'] == 'regex':
-                        if rule['keyword'] not in memo:
-                            memo[rule['keyword']] = parse_first_keyword(content, rule['keyword']) if int(rule['regexMode']) == 0 else parse_keywords(content, rule['keyword'])
-                        value = memo[rule['keyword']]
-                    elif rule['parseType'] == 'other':
-                        if rule['keyword'] == 'currentTime':
-                            value = current_time
-                    else:
-                        continue
-                    temp[rule['key']] = value
-                for rule in fixed_rules:
-                    temp[rule['source']] = rule['target']
-                result.append(temp)
+            # 添加其他值
+            result = addOtherValues(res, other_rules, content, current_time)
 
         print(f'========命名文件======')
         output_dir = os.path.join('data', str(task_id))
@@ -205,6 +179,7 @@ def run_task(task_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
 def run_scheduled_task(task_id):
     with app.app_context():
         run_task(task_id)
@@ -230,6 +205,24 @@ def schedule_task(task):
 
     print(f"已添加定时任务: {task_id}")
     print(f"任务详情: {task}")
+
+def addOtherValues(data, other_rules, html_content, current_time):
+    result = []
+    memo = {}
+    for item in data:
+        for rule in other_rules:
+            if rule['valueType'] == 'fixed':
+                item[rule['source']] = rule['target']
+            elif rule['valueType'] == 'regex':  # 只允许解析单个
+                if rule['source'] not in memo:
+                    memo[rule['source']] = match_one(html_content, rule['target'])
+                value = memo[rule['source']]
+                item[rule['source']] = value
+            elif rule['valueType'] == 'other':
+                if rule['target'] == 'attack_time':
+                    item[rule['source']] = current_time
+        result.append(item)
+    return result
 
 def init_scheduler():
     print("初始化调度器")

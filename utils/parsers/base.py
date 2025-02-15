@@ -24,9 +24,14 @@ class BaseParser(ABC):
             print(f"已加载URL: {url}")
 
     @abstractmethod
-    def parse(self, url, table_type=0):
+    def parse(self, url, parseType, columns, patterns, table_pattern=None):
         """
-        输出: 表格
-            table
+        输出: 解析表格
         """
         pass
+
+    def get_content(self):
+        """
+        输出: 网页源码
+        """
+        return self.content
