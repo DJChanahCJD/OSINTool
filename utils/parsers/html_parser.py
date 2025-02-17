@@ -1,3 +1,4 @@
+import random
 from playwright.sync_api import sync_playwright
 from lxml import html
 from utils.common import get_random_user_agent
@@ -19,7 +20,7 @@ class HTMLParser:
 
     def parse(self):
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)  # Set headless=True to disable browser UI
+            browser = p.chromium.launch(headless=True)  # Set headless=True to disable browser UI
             page = browser.new_page(extra_http_headers={'User-Agent': get_random_user_agent()})
 
             page.goto(self.url)
@@ -53,7 +54,7 @@ class HTMLParser:
                     if next_page.is_visible() and not next_page.is_disabled():
                         print("点击下一页...")
                         next_page.click()
-                        time.sleep(3)   # 等待页面加载（必要，否则会爬取到未加载完的数据又跳到下一页）
+                        time.sleep(random.uniform(3, 5))  # 延时3到5秒，等待页面加载（必要，否则会爬取到未加载完的数据又跳到下一页）
                         page.wait_for_selector(f'xpath={self.table_xpath}')
                     else:
                         print("已到达最后一页")
