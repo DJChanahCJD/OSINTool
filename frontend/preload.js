@@ -13,22 +13,32 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+const baseURL = 'http://localhost:5000'; // 后端服务器地址
+
 contextBridge.exposeInMainWorld('api', {
     // 获取所有任务
     getTasks: () => {
-        return fetch('http://localhost:5000/api/tasks')
+        return fetch(`${baseURL}/api/tasks`)
+            .then(response => response.json())
+    },
+
+    // 获取分页任务
+    getTasksPaginated: (params) => {
+        // 将对象参数转为查询字符串
+        const queryParams = new URLSearchParams(params).toString();
+        return fetch(`${baseURL}/api/tasks/paginated?${queryParams}`)
             .then(response => response.json())
     },
 
     // 获取单个任务
     getTask: (taskId) => {
-        return fetch(`http://localhost:5000/api/tasks/${taskId}`)
+        return fetch(`${baseURL}/api/tasks/${taskId}`)
             .then(response => response.json())
     },
 
     // 创建任务
     createTask: (task) => {
-        return fetch('http://localhost:5000/api/tasks', {
+        return fetch(`${baseURL}/api/tasks`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -39,7 +49,7 @@ contextBridge.exposeInMainWorld('api', {
 
     // 更新任务
     updateTask: (taskId, task) => {
-        return fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+        return fetch(`${baseURL}/api/tasks/${taskId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -50,13 +60,13 @@ contextBridge.exposeInMainWorld('api', {
 
     // 删除任务
     deleteTask: (taskId) => {
-        return fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+        return fetch(`${baseURL}/api/tasks/${taskId}`, {
             method: 'DELETE'
         }).then(response => response.json())
     },
 
     updateTaskStatus: (taskId, isActive) => {
-        return fetch(`http://localhost:5000/api/tasks/${taskId}/status`, {
+        return fetch(`${baseURL}/api/tasks/${taskId}/status`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -66,14 +76,14 @@ contextBridge.exposeInMainWorld('api', {
     },
 
     parseTask: (taskId) => {
-        return fetch(`http://localhost:5000/api/tasks/${taskId}/parse`, {
+        return fetch(`${baseURL}/api/tasks/${taskId}/parse`, {
             method: 'POST'
         }).then(response => response.json())
     },
 
     // 执行任务
     runTask: (taskId) => {
-        return fetch(`http://localhost:5000/api/tasks/${taskId}/run`, {
+        return fetch(`${baseURL}/api/tasks/${taskId}/run`, {
             method: 'POST'
         }).then(response => response.json())
     },

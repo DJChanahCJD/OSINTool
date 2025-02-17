@@ -28,6 +28,64 @@ def get_tasks():
     tasks = tasks_table.all()
     return jsonify(tasks)
 
+
+@app.route('/api/tasks/paginated', methods=['GET'])
+def get_tasks_paginated():
+    # 获取分页、搜索、排序和筛选参数
+
+    print ("get_tasks_paginated")
+    # 解析参数
+    print(request.args)
+
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('perPage', 10))
+    search = request.args.get('searchQuery', '').lower()
+    print ("get_tasks_paginated 1")
+
+    sort = json.loads(request.args.get('sort', '[]'))   # 是一个对象sort= [{ sortField: 'title', sortOrder: 'asc' }]
+    print ("get_tasks_paginated 1111")
+
+    filters = json.loads(request.args.get('filters', '{}'))    # 是一个对象filters = { scheduleType: ['fixed'] }
+    print ("get_tasks_paginated2")
+
+    # 调试输出
+    print(f"Page: {page}, Per Page: {per_page}, Search: {search}, Sort: {sort}, Filters: {filters}")
+
+    # 获取所有任务
+    tasks = tasks_table.all()
+
+    # 搜索过滤
+    if search:
+        tasks = [t for t in tasks if search in t.get('title', '').lower() or search in t.get('url', '').lower()]
+
+    # 筛选过滤, filters = { scheduleType: ['fixed'], ... }
+    if filters:
+        for field, values in filters.items():
+            if values:
+                tasks = [t for t in tasks if t.get(field) in values]
+
+    # 排序处理
+    if sort:
+        for cond in reversed(sort):
+            field, order = cond.get("sortField"), cond.get("sortOrder", "asc")
+            placeholder = ''
+            tasks.sort(key=lambda t: placeholder if t.get(field) is None else t.get(field), reverse=(order == "desc"))
+
+
+    # 分页处理
+    start, end, total = (page - 1) * per_page, (page - 1) * per_page + per_page, len(tasks)
+    paginated_tasks = tasks[start:end]
+
+    return jsonify({
+        'page': page,
+        'perPage': per_page,
+        'total': total,
+        'data': paginated_tasks
+    })
+
+
+
+
 @app.route('/api/tasks', methods=['POST'])
 def create_task():
     data = request.json
@@ -175,21 +233,24 @@ def run_scheduled_task(task_id):
 def schedule_task(task):
     task_id = task['id']
     schedule_type = task['scheduleType']
+    job = None
     if schedule_type == 'fixed':
         days = task['days']
         exec_time = task['execTime']
         hour, minute = map(int, exec_time.split(':'))
-        scheduler.add_job(run_scheduled_task, 'cron', day=f'*/{days}', hour=hour, minute=minute, id=task_id, kwargs={'task_id': task_id})
+        job = scheduler.add_job(run_scheduled_task, 'cron', day=f'*/{days}', hour=hour, minute=minute, id=task_id, kwargs={'task_id': task_id})
     elif schedule_type == 'interval':
         interval = task['interval']
-        scheduler.add_job(run_scheduled_task, 'interval', minutes=interval, id=task_id, kwargs={'task_id': task_id})
+        job = scheduler.add_job(run_scheduled_task, 'interval', minutes=interval, id=task_id, kwargs={'task_id': task_id})
     elif schedule_type == 'random':
-        interval = random.randint(0, 4096)  # 0 - 4096 分钟之间
-        if interval == 0:
-            # 使用 date 触发器立即调度任务
-            scheduler.add_job(run_scheduled_task, 'date', run_date=datetime.now(), id=task_id, kwargs={'task_id': task_id})
-            interval = random.randint(1, 4096)
-        scheduler.add_job(run_scheduled_task, 'interval', minutes=interval, id=task_id, kwargs={'task_id': task_id})
+        interval = random.randint(1, 4096)  # 1 - 4096 分钟之间的随机值
+        job = scheduler.add_job(run_scheduled_task, 'interval', minutes=interval, id=task_id, kwargs={'task_id': task_id})
+
+    # 更新任务的 next_run_time
+    if job:
+        next_run_time = job.next_run_time.strftime('%Y-%m-%d %H:%M:%S') if job.next_run_time else None
+        Task = Query()
+        tasks_table.update({'next_run_time': next_run_time}, Task.id == task_id)
 
     print(f"已添加定时任务: {task_id}")
     print(f"任务详情: {task}")

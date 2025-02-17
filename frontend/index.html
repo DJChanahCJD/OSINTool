@@ -26,11 +26,12 @@
                 <div class="page-header">
                     <div class="search-bar">
                         <el-input
-                            v-model="searchQuery"
-                            placeholder="搜索任务名称或URL..."
-                            prefix-icon="el-icon-search"
-                            clearable
-                            style="width: 300px;">
+                        v-model="searchQuery"
+                        placeholder="搜索任务名称或URL..."
+                        prefix-icon="el-icon-search"
+                        clearable
+                        @input="onSearchInput"
+                        style="width: 300px;">
                         </el-input>
                         <el-button type="primary" icon="el-icon-plus" @click="createTask">
                             新建任务
@@ -41,11 +42,14 @@
                 <!-- 任务列表 -->
                 <div class="table-container">
                     <el-table
-                        :data="filteredTasks"
+                        ref="table"
+                        :data="tasks"
                         style="width: 100%"
                         v-loading="loading"
                         border
-                        stripe>
+                        stripe
+                        @sort-change="handleSortChange"
+                        @filter-change="handleFilterChange">
                         <el-table-column
                             prop="title"
                             label="任务名称"
@@ -59,7 +63,7 @@
                         <el-table-column
                             prop="url"
                             label="URL"
-                            min-width="280">
+                            min-width="240">
                             <template slot-scope="scope">
                                 <el-tooltip :content="scope.row.url" placement="top">
                                     <a :href="scope.row.url" target="_blank" class="url-cell">
@@ -71,17 +75,32 @@
                         <el-table-column
                             prop="scheduleType"
                             label="执行方式"
-                            min-width="120">
+                            min-width="100"
+                            :filters="scheduleTypeFilters"
+                            >
                             <template slot-scope="scope">
                                 <el-tag size="medium" :type="getScheduleTypeTag(scope.row.scheduleType)">
                                     {{ scheduleTypeMap[scope.row.scheduleType] }}
                                 </el-tag>
                             </template>
                         </el-table-column>
+                        <!-- sortable="custom" 取消默认的排序，需自定义排序 -->
+                        <el-table-column
+                            prop="next_run_time"
+                            label="下次运行时间"
+                            min-width="140"
+                            sortable="custom">
+                            <template slot-scope="scope">
+                                <el-tooltip :content="scope.row.next_run_time" placement="top">
+                                    <span>{{ scope.row.next_run_time }}</span>
+                                </el-tooltip>
+                            </template>
+                        </el-table-column>
                         <el-table-column
                             prop="isActive"
                             label="状态"
-                            min-width="100">
+                            min-width="100"
+                            :filters="isActiveFilters">
                             <template slot-scope="scope">
                                 <el-tag :type="scope.row.isActive ? 'success' : 'danger'">
                                     {{ scope.row.isActive ? '运行中' : '已停止' }}
@@ -131,6 +150,15 @@
                             </div>
                         </template>
                     </el-table>
+                    <el-pagination
+                        v-if="totalTasks > 0"
+                        :current-page="currentPage"
+                        :page-size="perPage"
+                        :total="totalTasks"
+                        layout="prev, pager, next, jumper,  ->, total, sizes"
+                        @current-change="handlePageChange"
+                        @size-change="handlePageSizeChange">
+                    </el-pagination>
                 </div>
             </div>
         </transition>
@@ -138,6 +166,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
     <script>
         new Vue({
             el: '#app',
@@ -150,15 +179,32 @@
                     'fixed': '定时',
                     'interval': '间隔',
                     'random': '随机'
-                }
+                },
+                isActiveMap: [
+                    { text: '运行中', value: true },
+                    { text: '已停止', value: false }
+                ],
+                currentPage: 1,
+                perPage: 10,
+                totalTasks: 0,
+                // 新增排序与筛选状态
+                sortList: [],      // 例如：[{ sortField: 'title', sortOrder: 'asc' }]
+                filterList: {}     // 例如：{ scheduleType: ['fixed'] }
             },
             computed: {
-                filteredTasks() {
-                    const query = this.searchQuery.toLowerCase();
-                    return this.tasks.filter(task =>
-                        task.title.toLowerCase().includes(query) ||
-                        task.url.toLowerCase().includes(query)
-                    );
+                getFilters() {
+                    return (map) => {
+                        if (Array.isArray(map)) {
+                            return map;
+                        }
+                        return Object.entries(map).map(([value, text]) => ({ text, value }));
+                    };
+                },
+                scheduleTypeFilters() {
+                    return this.getFilters(this.scheduleTypeMap);
+                },
+                isActiveFilters() {
+                    return this.getFilters(this.isActiveMap);
                 }
             },
             methods: {
@@ -170,20 +216,79 @@
                     };
                     return tagMap[type] || 'info';
                 },
-                async loadTasks() {
+                // 根据 Element UI 内置的排序事件更新排序条件
+                handleSortChange({ column, prop, order }) {
+                    // 如果需要支持多列排序，可以在这里判断（例如判断是否按住 Shift 键），本例只处理单列排序
+                    this.sortList = []; // 清空之前的排序条件
+                    if (order) {
+                        // Element UI 中 order 的值为 'ascending' 或 'descending'
+                        this.sortList.push({
+                            sortField: prop,
+                            sortOrder: order === 'ascending' ? 'asc' : 'desc'
+                        });
+                    }
+                    // 每次排序变化后，重新加载数据
+                    this.loadTasks();
+                },
+                // 处理筛选变化，参数 filters 为对象，形如 { scheduleType: ['fixed', 'interval'], ... }
+                handleFilterChange(filters) {
+                    // 保存筛选条件
+                    const tableColumns = this.$refs.table.columns;
+                    console.log("tableColumns：", tableColumns)
+                    const newFilterList = {};
+                    for (const [columnKey, values] of Object.entries(filters)) {
+                        console.log(columnKey, values)
+                        const column = tableColumns.find(col => col.id === columnKey);
+                        if (column) {
+                            newFilterList[column.property] = values;
+                        }
+                    }
+                    this.filterList = newFilterList;
+                    // 重新加载数据
+                    this.loadTasks();
+                },
+                // 防抖处理的函数，使用 lodash.debounce
+                onSearchInput: _.debounce(function() {
+                    this.currentPage = 1;  // 重置当前页为1
+                    this.loadTasks();
+                }, 500),  // 设置500ms的延迟
+                async loadTasks(page = 1, perPage = 10) {
                     this.loading = true;
                     try {
-                        const response = await window.api.getTasks();
-                        this.tasks = Array.isArray(response) ? response : [];
+                      // 整合所有查询参数
+                      const params = {
+                        page,
+                        perPage,
+                        searchQuery: this.searchQuery,
+                        // 排序条件以数组形式传递
+                        sort: JSON.stringify(this.sortList),
+                        // 筛选条件直接传递（后端可自行解析）
+                        filters: JSON.stringify(this.filterList)
+                      };
+                      // 打印查询参数，以检查是否正确
+                      console.log('Fetching tasks with params:', params);
+                      // 注意：这里 window.api.getTasksPaginated 需要支持接收对象参数，
+                      // 或者自行拼接为 URL 查询参数（例如使用 qs 库）
+                      const response = await window.api.getTasksPaginated(params);
+                      this.tasks = Array.isArray(response.data) ? response.data : [];
+                      this.totalTasks = response.total;
                     } catch (error) {
-                        this.$message.error({
-                            message: '加载任务失败',
-                            duration: 3000
-                        });
-                        console.error('Load tasks error:', error);
+                      this.$message.error({
+                        message: '加载任务失败',
+                        duration: 3000
+                      });
+                      console.error('Load tasks error:', error);
                     } finally {
-                        this.loading = false;
+                      this.loading = false;
                     }
+                  },
+                handlePageChange(page) {
+                    this.currentPage = page;
+                    this.loadTasks(page, this.perPage);
+                },
+                handlePageSizeChange(size) {
+                    this.perPage = size;
+                    this.loadTasks(this.currentPage, size);
                 },
                 createTask() {
                     // 清除本地存储的任务ID
@@ -234,7 +339,8 @@
                             console.error('Delete task error:', error);
                         }
                     }
-                }
+                },
+
             },
             async mounted() {
                 try {
