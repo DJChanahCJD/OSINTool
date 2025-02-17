@@ -14,6 +14,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 const baseURL = 'http://localhost:5000'; // 后端服务器地址
+const rootPath = path.resolve(__dirname, '..');  // 根目录
 
 contextBridge.exposeInMainWorld('api', {
     // 获取所有任务
@@ -109,5 +110,27 @@ contextBridge.exposeInMainWorld('api', {
             }
         });
         return true;
-    }
+    },
+    // 上传脚本
+    uploadScript: (id, file) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const scriptContent = e.target.result;
+            const scriptDir = path.join(rootPath, 'script');
+            const scriptPath = path.join(scriptDir, `${id}.py`);
+            console.log(scriptPath);
+
+            try {
+                // 确保 script 文件夹存在
+                fs.mkdirSync(scriptDir, { recursive: true });
+                // 写入文件
+                fs.writeFileSync(scriptPath, scriptContent, 'utf8');
+            } catch (error) {
+                console.error('Error writing script:', error);
+                return false;
+            }
+        };
+        reader.readAsText(file.raw);
+        return true;
+    },
 })

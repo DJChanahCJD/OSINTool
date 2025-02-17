@@ -55,127 +55,158 @@
                         <el-input v-model="currentTask.url" placeholder="请输入网址或本地文件路径，如: http://example.com 或 file://path/to/file"></el-input>
                     </el-form-item>
                     </el-col>
-                    <el-form-item label="定时周期">
-                        <el-select v-model="currentTask.scheduleType" placeholder="执行方式" style="width: 120px"
-                            @change="handleScheduleTypeChange">
-                            <el-option label="定时" value="fixed"></el-option>
-                            <el-option label="间隔" value="interval"></el-option>
-                            <el-option label="随机" value="random"></el-option>
-                        </el-select>
-                        <template v-if="currentTask.scheduleType === 'fixed'">
-                            <span style="margin: 0 5px">每</span>
-                            <el-input-number v-model="currentTask.days" :min="1" controls-position="right" style="width: 100px">
-                            </el-input-number>
-                            <span style="margin: 0 5px">天</span>
-                            <el-time-picker v-model="currentTask.execTime" format="HH:mm" value-format="HH:mm"
-                                placeholder="选择时间" style="width: 120px">
-                            </el-time-picker>
-                        </template>
-                        <template v-else-if="currentTask.scheduleType === 'interval'">
-                            <span style="margin: 0 5px">每</span>
-                            <el-input-number v-model="currentTask.interval" :min="1" controls-position="right"
-                                style="width: 100px">
-                            </el-input-number>
-                            <span style="margin: 0 5px">分钟</span>
-                        </template>
-                    </el-form-item>
-
-                    <el-form-item label="数据格式">
-                        <el-row :gutter="10">
+                    <el-form label-width="80px">
+                        <el-row :gutter="20">
                             <el-col :span="6">
-                                <el-select v-model="currentTask.dataFormat" placeholder="请选择数据格式">
+                                <el-form-item label="爬取模式">
+                                    <el-select v-model="currentTask.crawlMode" placeholder="请选择爬取模式">
+                                        <el-option label="😄普通模式" value="general"></el-option>
+                                        <el-option label="👑专家模式" value="pro"></el-option>
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="定时周期">
+                                    <el-select v-model="currentTask.scheduleType" placeholder="执行方式" style="width: 120px"
+                                        @change="handleScheduleTypeChange">
+                                        <el-option label="定时" value="fixed"></el-option>
+                                        <el-option label="间隔" value="interval"></el-option>
+                                        <el-option label="随机" value="random"></el-option>
+                                    </el-select>
+                                    <template v-if="currentTask.scheduleType === 'fixed'">
+                                        <span style="margin: 0 5px">每</span>
+                                        <el-input-number v-model="currentTask.days" :min="1" controls-position="right" style="width: 100px">
+                                        </el-input-number>
+                                        <span style="margin: 0 5px">天</span>
+                                        <el-time-picker v-model="currentTask.execTime" format="HH:mm" value-format="HH:mm"
+                                            placeholder="选择时间" style="width: 120px">
+                                        </el-time-picker>
+                                    </template>
+                                    <template v-else-if="currentTask.scheduleType === 'interval'">
+                                        <span style="margin: 0 5px">每</span>
+                                        <el-input-number v-model="currentTask.interval" :min="1" controls-position="right"
+                                            style="width: 100px">
+                                        </el-input-number>
+                                        <span style="margin: 0 5px">分钟</span>
+                                    </template>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                    </el-form>
+
+                    <template v-if="currentTask.crawlMode==='pro'">
+                        <el-form-item label="解析脚本">
+                            <el-upload
+                                class="upload"
+                                action="#"
+                                :show-file-list="true"
+                                :on-change="handleScriptFileChange"
+                                :before-upload="beforeScriptFileUpload"
+                                >
+                                <el-button type="primary">上传脚本</el-button>
+                            </el-upload>
+                        </el-form-item>
+                    </template>
+                    <template v-else>
+                        <el-form label-width="80px">
+                            <el-row :gutter="20">
+                              <el-col :span="6">
+                                <el-form-item label="数据格式">
+                                  <el-select v-model="currentTask.dataFormat" placeholder="请选择数据格式">
                                     <el-option label="文本类（TXT）" value="txt"></el-option>
                                     <el-option label="表格类（CSV）" value="csv"></el-option>
                                     <el-option label="网页类（HTML）" value="html"></el-option>
-                                </el-select>
-                            </el-col>
-                            <el-col :span="6">
-                                <el-select v-model="currentTask.parseType" placeholder="表格解析模式">
-                                    <!-- :value="0" 可判定数字, 而value="0"或value=0都会判定为字符串 -->
-                                    <el-option label="列索引（从0开始）" :value="0" v-if="currentTask.dataFormat != 'html'"></el-option>
+                                  </el-select>
+                                </el-form-item>
+                              </el-col>
+                              <el-col :span="6">
+                                <el-form-item label="解析类型">
+                                  <el-select v-model="currentTask.parseType" placeholder="表格解析类型">
+                                    <el-option label="列索引（从0开始）" :value="0" v-if="currentTask.dataFormat !== 'html'"></el-option>
                                     <el-option label="正则匹配" :value="1"></el-option>
-                                </el-select>
-                            </el-col>
-                            <el-col :span="10">
-                                <span>最多爬取</span>
-                                <el-input-number v-model="currentTask.maxCount" :min="1" controls-position="right" placeholder="不少于1" style="margin: 0 4px;"></el-input-number>
-                                <span>个数据</span>
-                            </el-col>
-                        </el-row>
-                    </el-form-item>
-                    <el-form-item label="XPath" v-if="currentTask.dataFormat === 'html'">
-                        <el-row :gutter="10">
-                            <el-col :span="7">
-                                <el-input v-model="currentTask.xpaths.table" placeholder="表格XPath，如: //div[@role='table']"></el-input>
-                            </el-col>
-                            <el-col :span="7">
-                                <el-input v-model="currentTask.xpaths.row" placeholder="行XPath（相对于表格）"></el-input>
-                            </el-col>
-                            <el-col :span="7">
-                                <el-input v-model="currentTask.xpaths.next_page" placeholder="下一页按钮XPath"></el-input>
-                            </el-col>
-                        </el-row>
-                    </el-form-item>
-                    <el-form-item label="表格匹配" v-if="currentTask.dataFormat === 'txt'">
-                        <el-row :gutter="10">
-                            <el-col :span="12">
-                                <el-input v-model="currentTask.table_pattern" placeholder="表格的正则匹配，从每行开头匹配，如: (\S+)\s+#\s+domain - (.*)"></el-input>
-                            </el-col>
-                        </el-row>
-                    </el-form-item>
-                    <el-form-item label="列解析">
-                        <div v-for="(item, index) in currentTask.parseValues" :key="index" class="dynamic-row">
-                            <el-row :gutter="10" type="flex" align="middle">
-                                <el-col :span="8">
-                                    <el-input v-model="item.key" placeholder="解析字段"></el-input>
-                                </el-col>
-                                <el-col :span="8">
-                                    <template v-if ="currentTask.parseType === 0">
-                                        <span>第</span>
-                                        <el-input-number v-model="item.index" :min="0" controls-position="right" placeholder="列索引"></el-input-number>
-                                        <span>列</span>
-                                    </template>
-                                    <el-input v-else v-model="item.pattern" placeholder="正则表达式，如：(简单|中等|困难)"></el-input>
-                                </el-col>
-                                <el-col :span="2">
-                                    <el-button type="danger" icon="el-icon-delete" @click="removeParseValue(index)"></el-button>
-                                </el-col>
+                                  </el-select>
+                                </el-form-item>
+                              </el-col>
+                              <el-col :span="12">
+                                <el-form-item label="最大爬取数" label-width="100px">
+                                  <el-input-number v-model="currentTask.maxCount" :min="1" controls-position="right" placeholder="不少于1" style="margin: 0 4px;"></el-input-number>
+                                </el-form-item>
+                              </el-col>
                             </el-row>
-                        </div>
-                        <el-button type="primary" icon="el-icon-plus" @click="addParseValue">添加解析值</el-button>
-                    </el-form-item>
-
-                    <el-form-item label="其他值">
-                        <div v-for="(item, index) in currentTask.otherValues" :key="index" class="dynamic-row">
-                            <el-row :gutter="10" type="flex" align="middle">
+                          </el-form>
+                        <el-form-item label="XPath" v-if="currentTask.dataFormat === 'html'">
+                            <el-row :gutter="10">
                                 <el-col :span="7">
-                                    <el-input v-model="item.source" placeholder="请输入源值"></el-input>
+                                    <el-input v-model="currentTask.xpaths.table" placeholder="表格XPath，如: //div[@role='table']"></el-input>
                                 </el-col>
-                                <el-col :span="4">
-                                    <el-select v-model="item.valueType" placeholder="取值类型">
-                                        <el-option label="固定值" value="fixed"></el-option>
-                                        <el-option label="正则匹配" value="regex"></el-option>
-                                        <el-option label="特殊值" value="special"></el-option>
-                                    </el-select>
+                                <el-col :span="7">
+                                    <el-input v-model="currentTask.xpaths.row" placeholder="行XPath（相对于表格）"></el-input>
                                 </el-col>
-                                <el-col :span="11">
-                                    <el-input v-if="item.valueType != 'special'" v-model="item.target" placeholder="请输入固定值或正则表达式"></el-input>
-                                    <el-select v-else v-model="item.target" placeholder="请选择特殊值">
-                                        <el-option
-                                            v-for="option in specialValues"
-                                            :key="option.value"
-                                            :label="option.label"
-                                            :value="option.value"
-                                        ></el-option>
-                                    </el-select>
-                                </el-col>
-                                <el-col :span="2">
-                                    <el-button type="danger" icon="el-icon-delete" @click="removeOtherValues(index)"></el-button>
+                                <el-col :span="7">
+                                    <el-input v-model="currentTask.xpaths.next_page" placeholder="下一页按钮XPath"></el-input>
                                 </el-col>
                             </el-row>
-                        </div>
-                        <el-button type="primary" icon="el-icon-plus" @click="addOtherValues" style="margin-bottom: 40px;">添加其他值</el-button>
-                    </el-form-item>
+                        </el-form-item>
+                        <el-form-item label="表格匹配" v-if="currentTask.dataFormat === 'txt'">
+                            <el-row :gutter="10">
+                                <el-col :span="12">
+                                    <el-input v-model="currentTask.table_pattern" placeholder="表格的正则匹配，从每行开头匹配，如: (\S+)\s+#\s+domain - (.*)"></el-input>
+                                </el-col>
+                            </el-row>
+                        </el-form-item>
+                        <el-form-item label="列解析">
+                            <div v-for="(item, index) in currentTask.parseValues" :key="index" class="dynamic-row">
+                                <el-row :gutter="10" type="flex" align="middle">
+                                    <el-col :span="8">
+                                        <el-input v-model="item.key" placeholder="解析字段"></el-input>
+                                    </el-col>
+                                    <el-col :span="8">
+                                        <template v-if ="currentTask.parseType === 0">
+                                            <span>第</span>
+                                            <el-input-number v-model="item.index" :min="0" controls-position="right" placeholder="列索引"></el-input-number>
+                                            <span>列</span>
+                                        </template>
+                                        <el-input v-else v-model="item.pattern" placeholder="正则表达式，如：(简单|中等|困难)"></el-input>
+                                    </el-col>
+                                    <el-col :span="2">
+                                        <el-button type="danger" icon="el-icon-delete" @click="removeParseValue(index)"></el-button>
+                                    </el-col>
+                                </el-row>
+                            </div>
+                            <el-button type="primary" icon="el-icon-plus" @click="addParseValue">添加解析值</el-button>
+                        </el-form-item>
+                        <el-form-item label="其他值">
+                            <div v-for="(item, index) in currentTask.otherValues" :key="index" class="dynamic-row">
+                                <el-row :gutter="10" type="flex" align="middle">
+                                    <el-col :span="7">
+                                        <el-input v-model="item.source" placeholder="请输入源值"></el-input>
+                                    </el-col>
+                                    <el-col :span="4">
+                                        <el-select v-model="item.valueType" placeholder="取值类型">
+                                            <el-option label="固定值" value="fixed"></el-option>
+                                            <el-option label="正则匹配" value="regex"></el-option>
+                                            <el-option label="特殊值" value="special"></el-option>
+                                        </el-select>
+                                    </el-col>
+                                    <el-col :span="11">
+                                        <el-input v-if="item.valueType != 'special'" v-model="item.target" placeholder="请输入固定值或正则表达式"></el-input>
+                                        <el-select v-else v-model="item.target" placeholder="请选择特殊值">
+                                            <el-option
+                                                v-for="option in specialValues"
+                                                :key="option.value"
+                                                :label="option.label"
+                                                :value="option.value"
+                                            ></el-option>
+                                        </el-select>
+                                    </el-col>
+                                    <el-col :span="2">
+                                        <el-button type="danger" icon="el-icon-delete" @click="removeOtherValues(index)"></el-button>
+                                    </el-col>
+                                </el-row>
+                            </div>
+                            <el-button type="primary" icon="el-icon-plus" @click="addOtherValues" style="margin-bottom: 40px;">添加其他值</el-button>
+                        </el-form-item>
+                    </template>
                 </el-form>
                 <div class="action-buttons">
                     <el-button type="warning" icon="el-icon-refresh" @click="runTask">运行</el-button>
@@ -227,7 +258,7 @@
                 days: 1,
                 execTime: '',
                 schedule: '', // 最终存储的cron表达式
-                dataFormat: '',
+                dataFormat: 'txt',
                 parseType: 1, // 0: 列解析, 1:正则匹配
                 table_pattern: '',
                 interval: 1, // 间隔时间（分钟）
@@ -240,6 +271,7 @@
                 otherValues: [],
                 isActive: false,
                 maxCount: 10,    // 最多爬取数据数量,
+                crawlMode: 'general',
             },
             specialValues: [
                 { value: 'attack_time', label: '爬取时间' },
@@ -248,9 +280,48 @@
             parsedTable: [],
             tableColumns: [],
         },
+        watch: {
+            'currentTask.dataFormat': {
+                immediate: true,
+                handler() {
+                    if (this.currentTask.dataFormat === 'html') {
+                        this.currentTask.parseType = 1;
+                    }
+                }
+            }
+        },
         methods: {
             backToList() {
                 window.location.href = 'index.html';
+            },
+            beforeScriptFileUpload(file) {
+                if (this.currentTask.id == null) {
+                    this.$message.warning('请先选择任务');
+                    return false;
+                }
+                if (this.currentTask.crawlMode !== 'pro') {
+                    this.$message.warning('非专家模式无法上传脚本');
+                    return false;
+                }
+                // 检查文件类型
+                const allowedTypes = ['py'];
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                if (!allowedTypes.includes(fileExtension)) {
+                    this.$message.error('请上传.py文件');
+                    return false;
+                }
+                return true;
+            },
+            // 处理文件上传变化
+            async handleScriptFileChange(file) {
+                if (!file) return;
+                const isOk = await window.api.uploadScript(this.currentTask.id, file);
+                if (isOk) {
+                    this.$message.success('脚本上传成功');
+                    await this.checkScriptFile();
+                } else {
+                    this.$message.error('脚本上传失败：' + response.message);
+                }
             },
             async loadTasks() {
                 try {
@@ -272,6 +343,7 @@
                         this.currentTask = task;
                         localStorage.setItem('currentTaskId', JSON.stringify(taskId));
                     }
+                    await this.checkScriptFile(); // 检查脚本文件
                 } catch (error) {
                     this.$message.error('加载失败');
                     localStorage.removeItem('currentTaskId');
@@ -317,6 +389,7 @@
                     otherValues: [],
                     isActive: false,
                     maxCount: 10,    // 最多爬取数据数量
+                    crawlMode: 'general',
                 };
             },
             async copyToNewTask () {
@@ -388,7 +461,9 @@
             },
             async saveTask() {
                 try {
-                    this.validateData();
+                    if (!this.validateData()) {
+                        return;
+                    }
                     this.updateSchedule();
 
                     if (this.currentTask.id) {
@@ -486,7 +561,7 @@
                     this.$message.warning('源值和目标值不能为空');
                     return false;
                 }
-                if (this.currentTask.parseType === '1') {
+                if (this.currentTask.parseType === 1) {
                     for (let item of this.currentTask.parseValues) {
                         try {
                             new RegExp(item.pattern);
