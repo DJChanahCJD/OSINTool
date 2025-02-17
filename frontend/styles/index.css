@@ -56,6 +56,7 @@ body {
     border-radius: 8px;
     box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
     padding: 16px;
+    margin-bottom: 48px;
 }
 
 .el-table {
@@ -93,6 +94,21 @@ body {
     text-align: center;
     padding: 40px;
     color: #909399;
+}
+
+/* 固定底部动作栏 */
+.footer-action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 /* 响应式设计 */

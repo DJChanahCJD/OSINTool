@@ -46,10 +46,19 @@
                         :data="tasks"
                         style="width: 100%"
                         v-loading="loading"
+                        v-model:selection="selectedTasks"
+                        row-key="id"
+                        highlight-current-row
+                        reserve-selection
                         border
                         stripe
+                        @selection-change="handleSelectionChange"
                         @sort-change="handleSortChange"
                         @filter-change="handleFilterChange">
+                        <el-table-column
+                            type="selection"
+                            width="40">
+                        </el-table-column>
                         <el-table-column
                             prop="title"
                             label="任务名称"
@@ -159,6 +168,15 @@
                         @current-change="handlePageChange"
                         @size-change="handlePageSizeChange">
                     </el-pagination>
+                    <!-- 底部操作区域，仅在有选中项时显示 -->
+                    <div class="footer-action-bar" v-if="selectedTasks.length > 0">
+                        <span style="margin-right: 20px;">已选中 {{ selectedTasks.length }} 项</span>
+                        <span class="footer-action-button">
+                            <el-button type="success" @click="runSelectedTasks">批量启动</el-button>
+                            <el-button type="warning" @click="stopSelectedTasks">批量停止</el-button>
+                            <el-button type="danger" @click="deleteSelectedTasks">批量删除</el-button>
+                        </span>
+                    </div>
                 </div>
             </div>
         </transition>
@@ -188,8 +206,9 @@
                 perPage: 10,
                 totalTasks: 0,
                 // 新增排序与筛选状态
-                sortList: [],      // 例如：[{ sortField: 'title', sortOrder: 'asc' }]
-                filterList: {}     // 例如：{ scheduleType: ['fixed'] }
+                sort: [],      // 例如：[{ sortField: 'title', sortOrder: 'asc' }]
+                filters: {},     // 例如：{ scheduleType: ['fixed'] }
+                selectedTasks: [],  // 任务多选，用于批量操作
             },
             computed: {
                 getFilters() {
@@ -216,13 +235,51 @@
                     };
                     return tagMap[type] || 'info';
                 },
+                handleSelectionChange(val) {
+                    this.selectedTasks = val;
+                    console.log("selectedTasks：", this.selectedTasks)
+                },
+                // 通用批量操作函数
+                async batchOperation(operation, apiCall) {
+                    if (this.selectedTasks.length === 0) {
+                        this.$message.warning('请先选择任务');
+                        return;
+                    }
+                    try {
+                        await this.$confirm(`此操作将${operation}选中的${this.selectedTasks.length}个任务，是否继续？`, '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+
+                        const taskIds = this.selectedTasks.map(task => task.id);
+                        await apiCall(taskIds);
+                        await this.loadTasks();
+                        this.selectedTasks = [];
+                        this.$message.success({
+                            message: `${operation}成功`,
+                            duration: 2000
+                        });
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            this.$message.error({
+                                message: `${operation}失败`,
+                                duration: 3000
+                            });
+                            console.error('Batch operation error:', error);
+                        }
+                    }
+                },
+                async deleteSelectedTasks() { await this.batchOperation('删除', window.api.deleteTasks);},
+                async runSelectedTasks() { await this.batchOperation('启动', window.api.runTasks);},
+                async stopSelectedTasks() { await this.batchOperation('停止', window.api.stopTasks);},
                 // 根据 Element UI 内置的排序事件更新排序条件
                 handleSortChange({ column, prop, order }) {
                     // 如果需要支持多列排序，可以在这里判断（例如判断是否按住 Shift 键），本例只处理单列排序
-                    this.sortList = []; // 清空之前的排序条件
+                    this.sort = []; // 清空之前的排序条件
                     if (order) {
                         // Element UI 中 order 的值为 'ascending' 或 'descending'
-                        this.sortList.push({
+                        this.sort.push({
                             sortField: prop,
                             sortOrder: order === 'ascending' ? 'asc' : 'desc'
                         });
@@ -235,15 +292,15 @@
                     // 保存筛选条件
                     const tableColumns = this.$refs.table.columns;
                     console.log("tableColumns：", tableColumns)
-                    const newFilterList = {};
+                    const newFilters = {};
                     for (const [columnKey, values] of Object.entries(filters)) {
                         console.log(columnKey, values)
                         const column = tableColumns.find(col => col.id === columnKey);
                         if (column) {
-                            newFilterList[column.property] = values;
+                            newFilters[column.property] = values;
                         }
                     }
-                    this.filterList = newFilterList;
+                    this.filters = newFilters;
                     // 重新加载数据
                     this.loadTasks();
                 },
@@ -251,27 +308,24 @@
                 onSearchInput: _.debounce(function() {
                     this.currentPage = 1;  // 重置当前页为1
                     this.loadTasks();
+                    console.log("onSeerchInput")
                 }, 500),  // 设置500ms的延迟
-                async loadTasks(page = 1, perPage = 10) {
+                async loadTasks() {
                     this.loading = true;
                     try {
                       // 整合所有查询参数
                       const params = {
-                        page,
-                        perPage,
+                        page: this.currentPage,
+                        perPage: this.perPage,
                         searchQuery: this.searchQuery,
-                        // 排序条件以数组形式传递
-                        sort: JSON.stringify(this.sortList),
-                        // 筛选条件直接传递（后端可自行解析）
-                        filters: JSON.stringify(this.filterList)
+                        sort: JSON.stringify(this.sort),
+                        filters: JSON.stringify(this.filters)
                       };
-                      // 打印查询参数，以检查是否正确
                       console.log('Fetching tasks with params:', params);
-                      // 注意：这里 window.api.getTasksPaginated 需要支持接收对象参数，
-                      // 或者自行拼接为 URL 查询参数（例如使用 qs 库）
                       const response = await window.api.getTasksPaginated(params);
                       this.tasks = Array.isArray(response.data) ? response.data : [];
                       this.totalTasks = response.total;
+                      localStorage.setItem('params', JSON.stringify(params));
                     } catch (error) {
                       this.$message.error({
                         message: '加载任务失败',
@@ -284,11 +338,11 @@
                   },
                 handlePageChange(page) {
                     this.currentPage = page;
-                    this.loadTasks(page, this.perPage);
+                    this.loadTasks();
                 },
                 handlePageSizeChange(size) {
                     this.perPage = size;
-                    this.loadTasks(this.currentPage, size);
+                    this.loadTasks();
                 },
                 createTask() {
                     // 清除本地存储的任务ID
@@ -340,10 +394,18 @@
                         }
                     }
                 },
-
             },
             async mounted() {
                 try {
+                    // 从本地存储中获取参数（简单状态存储，就不做多窗口了）
+                    const storedParams = localStorage.getItem('params');
+                    if (storedParams) {
+                        const params = JSON.parse(storedParams);
+                        this.currentPage = params.page;
+                        this.perPage = params.perPage;
+                        this.searchQuery = params.searchQuery;
+                        this.sort = JSON.parse(params.sort);
+                    }
                     await this.loadTasks();
                     this.$nextTick(() => {
                         this.pageReady = true;
@@ -356,6 +418,10 @@
                     console.error('Page load error:', error);
                 }
             }
+        });
+        window.api.receiveFromMain('quit', () => {
+            console.log('quit')
+            localStorage.removeItem('params');  // 退出时清除本地存储的参数
         });
     </script>
 </body>

@@ -1,4 +1,4 @@
-const { contextBridge, shell } = require('electron')
+const { contextBridge, shell, ipcRenderer } = require('electron')
 const { Titlebar, TitlebarColor } = require("custom-electron-titlebar");
 const path = require('path');
 const fs = require('fs');
@@ -88,6 +88,38 @@ contextBridge.exposeInMainWorld('api', {
             method: 'POST'
         }).then(response => response.json())
     },
+
+    // 批量删除任务
+    deleteTasks: (taskIds) => {
+        return fetch(`${baseURL}/api/tasks/batch_delete`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ taskIds })
+        }).then(response => response.json())
+    },
+    // 批量运行
+    runTasks: (taskIds) => {
+        return fetch(`${baseURL}/api/tasks/batch_start`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ taskIds })
+        }).then(response => response.json())
+    },
+    // 批量停止
+    stopTasks: (taskIds) => {
+        return fetch(`${baseURL}/api/tasks/batch_stop`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ taskIds })
+        }).then(response => response.json())
+    },
+
     // 打开根目录data/taskId
     openTaskResultFolder: (taskId) => {
         const rootPath = path.resolve(__dirname, '..');  // 根目录
@@ -133,4 +165,6 @@ contextBridge.exposeInMainWorld('api', {
         reader.readAsText(file.raw);
         return true;
     },
+    sendToRenderer: (channel, data) => ipcRenderer.send(channel, data),
+    receiveFromMain: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args))
 })

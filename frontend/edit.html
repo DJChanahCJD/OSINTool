@@ -343,7 +343,6 @@
                         this.currentTask = task;
                         localStorage.setItem('currentTaskId', JSON.stringify(taskId));
                     }
-                    await this.checkScriptFile(); // 检查脚本文件
                 } catch (error) {
                     this.$message.error('加载失败');
                     localStorage.removeItem('currentTaskId');

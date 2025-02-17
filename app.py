@@ -106,35 +106,50 @@ def get_task(task_id):
 
 @app.route('/api/tasks/<string:task_id>', methods=['PUT'])
 def update_task(task_id):
-    data = request.json
-    Task = Query()
-    tasks_table.update(data, Task.id == task_id)
-    if scheduler.get_job(task_id):
-        scheduler.remove_job(task_id)   # 先删除原有任务
-    if data.get('isActive', False) == True:
-        schedule_task(data)
-    return jsonify({'success': True})
+    try:
+        data = request.json
+        Task = Query()
+        tasks_table.update(data, Task.id == task_id)
+        if scheduler.get_job(task_id):
+            scheduler.remove_job(task_id)   # 先删除原有任务
+        if data.get('isActive', False) == True:
+            schedule_task(data)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/tasks/<string:task_id>', methods=['DELETE'])
 def delete_task(task_id):
-    Task = Query()
-    tasks_table.remove(Task.id == task_id)
-    if scheduler.get_job(task_id):
-        scheduler.remove_job(task_id)
-    return jsonify({'success': True})
+    try:
+        Task = Query()
+        tasks_table.remove(Task.id == task_id)
+        if scheduler.get_job(task_id):
+            scheduler.remove_job(task_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# 批量删除
+@app.route('/api/tasks/batch_delete', methods=['DELETE'])
+def delete_tasks():
+    try:
+        data = request.json
+        ids = data.get('taskIds', [])
+        tasks_table.remove(Query().id.one_of(ids))
+        for task_id in ids:
+            if scheduler.get_job(task_id):
+                scheduler.remove_job(task_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/tasks/<string:task_id>/status', methods=['PUT'])
 def update_task_status(task_id):
     data = request.json
     isActive = data.get('isActive', False)
-    Task = Query()
-    tasks_table.update({'isActive': isActive}, Task.id == task_id)
-    if isActive:
-        task = tasks_table.get(Task.id == task_id)
-        schedule_task(task)
-    else:
-        if scheduler.get_job(task_id):
-            scheduler.remove_job(task_id)
+    update_task_status_func(task_id, isActive)
 
     # 打印当前所有运行的任务
     print("当前运行的任务:")
@@ -143,6 +158,16 @@ def update_task_status(task_id):
         # 打印任务详情
         print(job)
     return jsonify({'success': True})
+
+def update_task_status_func(task_id, isActive):
+    Task = Query()
+    tasks_table.update({'isActive': isActive}, Task.id == task_id)
+    if isActive:
+        task = tasks_table.get(Task.id == task_id)
+        schedule_task(task)
+    else:
+        if scheduler.get_job(task_id):
+            scheduler.remove_job(task_id)
 
 @app.route('/api/tasks/running', methods=['GET'])
 def get_running_tasks():
@@ -205,6 +230,30 @@ def run_task(task_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+#批量启动
+@app.route('/api/tasks/batch_start', methods=['POST'])
+def batch_start_tasks():
+    try:
+        data = request.json
+        task_ids = data.get('taskIds', [])
+        for task_id in task_ids:
+            update_task_status_func(task_id, True)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+#批量停止
+@app.route('/api/tasks/batch_stop', methods=['POST'])
+def batch_stop_tasks():
+    try:
+        data = request.json
+        task_ids = data.get('taskIds', [])
+        for task_id in task_ids:
+            update_task_status_func(task_id, False)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 def execute_task_parsing(task, max_count):
     # 根据任务设置提取解析规则
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -229,6 +278,7 @@ def execute_task_parsing(task, max_count):
 def run_scheduled_task(task_id):
     with app.app_context():
         run_task(task_id)
+
 
 def schedule_task(task):
     task_id = task['id']

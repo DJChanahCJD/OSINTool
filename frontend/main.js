@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
 
 const { setupTitlebar, attachTitlebarToWindow } = require("custom-electron-titlebar/main");
@@ -6,8 +6,10 @@ const { setupTitlebar, attachTitlebarToWindow } = require("custom-electron-title
 // setup the titlebar main process
 setupTitlebar();
 
+let mainWindow;
+
 function createWindow() {
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
         titleBarStyle: 'hidden',  // 隐藏默认标题栏
@@ -28,7 +30,34 @@ function createWindow() {
 
     // 开发时打开开发者工具
     mainWindow.webContents.openDevTools()
+
+    // 监听窗口关闭事件
+    mainWindow.on('close', (e) => {
+        // 在这里进行判断，例如检查某些条件
+        if (mainWindow &&!mainWindow.isDestroyed()) {
+            // 发送消息给渲染进程
+            mainWindow.webContents.send('quit');
+        }
+
+        // 如果你想阻止窗口关闭，可以使用 e.preventDefault()
+        // e.preventDefault();
+    });
+
 }
+
+function createEditWindow(mainWindow) {
+    editWindow = new BrowserWindow({
+      width: 600,
+      height: 400,
+      parent: mainWindow, // 让 editWindow 作为 mainWindow 的子窗口
+      modal: true, // 使用模态窗口，确保不能在 edit.html 上与其他窗口交互
+      webPreferences: {
+        nodeIntegration: true
+      }
+    });
+
+    editWindow.loadFile('edit.html');
+  }
 
 app.whenReady().then(() => {
     createWindow();
@@ -71,7 +100,9 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', function () {
-    if (process.platform !== 'darwin') app.quit();
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
 });
 
 // 引入 MenuItem 类
