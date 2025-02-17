@@ -22,7 +22,7 @@ class TXTParser(BaseParser):
                 continue
 
             # 判断是否符合表格行的规则
-            match = re.match(table_pattern, line)
+            match = re.match(table_pattern, line)   # re.match 从开头匹配，部分匹配也算成功
             if match:
                 # 通过正则匹配提取表格单元格数据
                 row_data = match.groups()

@@ -124,7 +124,7 @@
                     <el-form-item label="表格匹配" v-if="currentTask.dataFormat === 'txt'">
                         <el-row :gutter="10">
                             <el-col :span="12">
-                                <el-input v-model="currentTask.table_pattern" placeholder="表格的正则匹配，如: (\S+)\s+#\s+domain - (.*)"></el-input>
+                                <el-input v-model="currentTask.table_pattern" placeholder="表格的正则匹配，从每行开头匹配，如: (\S+)\s+#\s+domain - (.*)"></el-input>
                             </el-col>
                         </el-row>
                     </el-form-item>
@@ -195,14 +195,7 @@
                 </div>
 
                 <!-- 表格解析结果对话框 -->
-                <el-dialog :visible.sync="dialogVisible" title="解析结果" width="80%">
-                    <!-- <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
-                        <el-table-column type="index" label="" :index="customRowIndex" width="60">
-                            <template slot-scope="scope"><span style="font-weight: bold; color: #909399">行{{ scope.$index }}</span></template>
-                        </el-table-column>
-                        <el-table-column v-for="(col, index) in tableColumns" :key="index" :label="'列' + (index)" :prop="index.toString()" :width="100">
-                        </el-table-column>
-                    </el-table> -->
+                <el-dialog :visible.sync="dialogVisible" title="解析结果" width="80%" append-to-body>
                     <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
                         <el-table-column type="index" label="行号" :index="customRowIndex" width="60">
                             <template slot-scope="scope">
@@ -251,7 +244,7 @@
                 parseValues: [],
                 otherValues: [],
                 isActive: false,
-                maxCount: 1,
+                maxCount: 10,    // 最多爬取数据数量,
             },
             specialValues: [
                 { value: 'attack_time', label: '爬取时间' },
@@ -328,7 +321,7 @@
                     parseValues: [],
                     otherValues: [],
                     isActive: false,
-                    maxCount: 1,    // 最多爬取数据数量
+                    maxCount: 10,    // 最多爬取数据数量
                 };
             },
             async copyToNewTask () {

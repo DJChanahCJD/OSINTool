@@ -27,7 +27,7 @@ function createWindow() {
     mainWindow.loadFile('index.html');
 
     // 开发时打开开发者工具
-    mainWindow.webContents.openDevTools()
+    // mainWindow.webContents.openDevTools()
 }
 
 app.whenReady().then(() => {
