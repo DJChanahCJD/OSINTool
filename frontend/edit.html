@@ -443,7 +443,7 @@
                     maxCount: 10,    // 最多爬取数据数量
                     crawlMode: 'general',
                 };
-                this.originalTask = JSON.parse(JSON.stringify(task));
+                this.originalTask = JSON.parse(JSON.stringify(this.currentTask));
             },
             async copyToNewTask () {
                 try {

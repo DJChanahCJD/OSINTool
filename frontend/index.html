@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSINTool - 任务管理</title>
+    <title>OSINTool</title>
     <link rel="stylesheet" href="./styles/index.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
     <style>
@@ -33,9 +33,9 @@
                         @input="onSearchInput"
                         style="width: 300px;">
                         </el-input>
-                        <el-button type="primary" icon="el-icon-plus" @click="createTask">
-                            新建任务
-                        </el-button>
+                        <span class="button-group">
+                            <el-button type="primary" icon="el-icon-plus" @click="createTask">新建任务</el-button>
+                        </span>
                     </div>
                 </div>
 
@@ -235,10 +235,7 @@
                     };
                     return tagMap[type] || 'info';
                 },
-                handleSelectionChange(val) {
-                    this.selectedTasks = val;
-                    console.log("selectedTasks：", this.selectedTasks)
-                },
+                handleSelectionChange(val) {this.selectedTasks = val;},
                 // 通用批量操作函数
                 async batchOperation(operation, apiCall) {
                     if (this.selectedTasks.length === 0) {
