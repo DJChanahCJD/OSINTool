@@ -1,15 +1,18 @@
-from tinydb import TinyDB, Query
+from tinydb import TinyDB
 
+# 打开数据库文件
 db = TinyDB('db.json')
-tasks_table = db.table('tasks')
 
-def migrate_add_next_run_time():
-    Task = Query()
-    # 遍历所有任务，如果没有 next_run_time 字段，则添加默认值 None
-    for task in tasks_table.all():
-        if 'next_run_time' not in task:
-            tasks_table.update({'next_run_time': None}, Task.id == task['id'])
-    print("迁移完成，所有任务已添加 next_run_time 字段。")
+# 获取所有任务
+tasks = db.table('tasks')
 
-if __name__ == '__main__':
-    migrate_add_next_run_time()
+# 遍历每个任务
+for task in tasks:
+    # 检查是否存在 crawlMode 字段
+    if 'crawlMode' not in task:
+        # 若不存在，则设置为 "general"
+        task['crawlMode'] = 'general'
+        # 更新数据库中的任务
+        tasks.update(task, doc_ids=[task.doc_id])
+
+print("数据迁移完成。")

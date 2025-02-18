@@ -33,13 +33,11 @@
                     <el-input v-model="currentTask.title" placeholder="任务名称" style="width: 200px;" clearable>
                     </el-input>
                     <span style="font-size:12px; color: grey;">id: {{currentTask.id}}</span>
-                    <!-- todo: 上次运行时间 -->
                     <el-button :type="currentTask.isActive ? 'success' : 'danger'"
                         :icon="currentTask.isActive ? 'el-icon-check' : 'el-icon-close'" @click="toggleTaskStatus">
                         {{ currentTask.isActive ? '运行中' : '已停止' }}
                     </el-button>
-                    <el-select v-model="currentTask.id" filterable placeholder="选择任务" @change="loadTask" style="width: 200px;"
-                        clearable>
+                    <el-select v-model="currentTask.id" filterable placeholder="选择任务" @change="loadTask" style="width: 200px;">
                         <el-option v-for="task in tasks" :key="task.id" :label="task.title" :value="task.id">
                             <span style="float: left">{{ task.title }}</span>
                             <span style="float: right; font-weight: bold"
@@ -94,7 +92,7 @@
                         </el-row>
                     </el-form>
 
-                    <template v-if="currentTask.crawlMode==='pro'">
+                    <template v-if="currentTask.crawlMode === 'pro'">
                         <el-form-item label="解析脚本">
                             <el-upload
                                 class="upload"
@@ -102,11 +100,23 @@
                                 :show-file-list="true"
                                 :on-change="handleScriptFileChange"
                                 :before-upload="beforeScriptFileUpload"
-                                >
-                                <el-button type="primary">上传脚本</el-button>
+                                :limit="1"
+                            >
+                                <template #trigger>
+                                    <el-button type="primary" size="medium">
+                                        <i class="el-icon-upload2"></i> 上传脚本
+                                    </el-button>
+                                </template>
+                                <span class="script-status" v-if="isScriptExists">
+                                    检测到脚本：<a href="#" @click.prevent="openScriptFile">script/{{currentTask.id}}.py</a>
+                                </span>
+                                <div class="upload-tip">
+                                    <i class="el-icon-info"></i> 仅支持 .py 文件，请将解析结果存储到 data/{{ currentTask.id }} 文件夹
+                                </div>
                             </el-upload>
                         </el-form-item>
                     </template>
+
                     <template v-else>
                         <el-form label-width="80px">
                             <el-row :gutter="20">
@@ -220,7 +230,7 @@
                     </div>
                 </div>
 
-                <!-- 表格解析结果对话框 -->
+                <!-- 表格预览解析结果对话框 -->
                 <el-dialog :visible.sync="dialogVisible" title="解析结果" width="80%" append-to-body>
                     <el-table :data="parsedTable" style="width: 100%; max-height: 400px; overflow: auto;">
                         <el-table-column type="index" label="行号" :index="customRowIndex" width="60">
@@ -244,6 +254,7 @@
 </body>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
 <script>
     new Vue({
         el: '#app',
@@ -279,18 +290,36 @@
             dialogVisible: false,
             parsedTable: [],
             tableColumns: [],
+            originalTask: {},
+            isScriptExists: false,
         },
         watch: {
             'currentTask.dataFormat': {
                 immediate: true,
                 handler() {
                     if (this.currentTask.dataFormat === 'html') {
-                        this.currentTask.parseType = 1;
+                        this.currentTask.parseType = 1; // html 模式下只允许使用正则匹配行列
                     }
                 }
             }
         },
         methods: {
+            async checkScriptFile() {
+                if (!this.currentTask.id) return;
+                try {
+                    const exists = await window.api.checkScriptExists(this.currentTask.id);
+                    this.isScriptExists = exists;
+                } catch (error) {
+                    console.error('Error checking script existence:', error);
+                }
+            },
+            openScriptFile() {
+                window.api.openScriptFile(this.currentTask.id);
+            },
+            // 判断当前任务数据是否已被修改
+            isTaskChanged() {
+                return JSON.stringify(this.currentTask) !== JSON.stringify(this.originalTask);
+            },
             backToList() {
                 window.location.href = 'index.html';
             },
@@ -312,17 +341,25 @@
                 }
                 return true;
             },
-            // 处理文件上传变化
-            async handleScriptFileChange(file) {
+            handleScriptFileChange: _.debounce(async function(file) {
                 if (!file) return;
-                const isOk = await window.api.uploadScript(this.currentTask.id, file);
-                if (isOk) {
-                    this.$message.success('脚本上传成功');
-                    await this.checkScriptFile();
-                } else {
-                    this.$message.error('脚本上传失败：' + response.message);
+                if (this.currentTask.id == null) {
+                    this.$message.warning('请先保存任务');
+                    return;
                 }
-            },
+                try {
+                    const isOk = await window.api.uploadScript(this.currentTask.id, file);
+                    if (isOk) {
+                        this.isFileUploaded = true;
+                        this.$message.success('脚本上传成功');
+                        await this.checkScriptFile();
+                    } else {
+                        this.$message.error('脚本上传失败');
+                    }
+                } catch (error) {
+                    this.$message.error('上传过程中发生错误：' + error.message);
+                }
+            }, 300),    // 300毫秒内只执行一次，防止多次上传
             async loadTasks() {
                 try {
                     this.tasks = await window.api.getTasks();
@@ -341,7 +378,9 @@
                     const task = await window.api.getTask(taskId);
                     if (task) {
                         this.currentTask = task;
+                        this.originalTask = JSON.parse(JSON.stringify(task));
                         localStorage.setItem('currentTaskId', JSON.stringify(taskId));
+                        await this.checkScriptFile();
                     }
                 } catch (error) {
                     this.$message.error('加载失败');
@@ -349,6 +388,20 @@
                 }
             },
             async runTask() {
+                // 判断数据是否有改动
+                if (this.isTaskChanged()) {
+                    try {
+                        await this.$confirm('检测到数据已改变，是否保存任务？', '提示', {
+                            confirmButtonText: '保存',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+                        await this.saveTask();
+                    } catch (error) {
+                        // 用户取消了保存，则不继续运行任务
+                        return;
+                    }
+                }
                 const loadingMessage = this.$message({
                     message: `正在运行任务 ${this.currentTask.title} ...`,
                     type: 'info',
@@ -390,6 +443,7 @@
                     maxCount: 10,    // 最多爬取数据数量
                     crawlMode: 'general',
                 };
+                this.originalTask = JSON.parse(JSON.stringify(task));
             },
             async copyToNewTask () {
                 try {

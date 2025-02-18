@@ -5,6 +5,13 @@
     opacity: 0;
 }
 
+:root {
+    --primary-color: #409EFF;
+    --success-color: #67C23A;
+    --danger-color: #F56C6C;
+    --border-color: #EBEEF5;
+}
+
 /* 添加页面预加载样式 */
 .page-loading {
     position: fixed;
@@ -56,4 +63,17 @@ body {
     background: rgba(255, 255, 255, 0.8);
     padding: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.script-status {
+    color: #606266;
+    margin-left: 8px;
+}
+
+.upload-tip {
+    font-size: 12px;
+    color: #909399;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }

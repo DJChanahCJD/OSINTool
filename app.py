@@ -161,13 +161,18 @@ def update_task_status(task_id):
 
 def update_task_status_func(task_id, isActive):
     Task = Query()
-    tasks_table.update({'isActive': isActive}, Task.id == task_id)
-    if isActive:
-        task = tasks_table.get(Task.id == task_id)
-        schedule_task(task)
-    else:
-        if scheduler.get_job(task_id):
-            scheduler.remove_job(task_id)
+    # 获取当前任务的状态
+    task = tasks_table.get(Task.id == task_id)
+    current_is_active = task.get('isActive', False) if task else False
+    # 检查当前状态和传入的状态是否一致
+    if current_is_active != isActive:
+        tasks_table.update({'isActive': isActive}, Task.id == task_id)
+        if isActive:
+            task = tasks_table.get(Task.id == task_id)
+            schedule_task(task)
+        else:
+            if scheduler.get_job(task_id):
+                scheduler.remove_job(task_id)
 
 @app.route('/api/tasks/running', methods=['GET'])
 def get_running_tasks():
@@ -197,6 +202,16 @@ def run_task(task_id):
         return jsonify({'success': False, 'error': '任务不存在'}), 404
 
     print(f'===========正在运行任务: {task_id}============')
+
+    if task['crawlMode'] == 'pro':  # 专家模式
+        # 找到根目录/script/{id}.py
+        script_path = os.path.join('script', f'{task_id}.py')
+        if not os.path.exists(script_path):
+            return jsonify({'success': False, 'error': '脚本文件不存在'}), 404
+        os.system(f'python {script_path}')  # 运行脚本
+        return jsonify({'success': True, 'message': '任务已成功运行'})
+
+    # 普通模式(task['crawlMode'] == 'general')
 
     os.makedirs('data', exist_ok=True)
 
@@ -324,7 +339,7 @@ def addOtherValues(data, other_rules, html_content, current_time):
     return result
 
 def init_scheduler():
-    print("初始化调度器")
+    print("初始化调度器...")
     scheduler.start()
     tasks = tasks_table.all()
     for task in tasks:

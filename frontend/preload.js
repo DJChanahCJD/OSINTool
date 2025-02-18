@@ -165,6 +165,21 @@ contextBridge.exposeInMainWorld('api', {
         reader.readAsText(file.raw);
         return true;
     },
+    // 检查脚本是否存在
+    checkScriptExists: (taskId) => {
+        const scriptDir = path.join(rootPath, 'script');
+        const scriptPath = path.join(scriptDir, `${taskId}.py`);
+        return fs.existsSync(scriptPath);
+    },
+    openScriptFile: (id) => {
+        const scriptDir = path.join(rootPath, 'script');
+        const scriptPath = path.join(scriptDir, `${id}.py`);
+        shell.openPath(scriptPath).then((error) => {
+            if (error) {
+                console.error('Failed to open script file:', error);
+            }
+        });
+    },
     sendToRenderer: (channel, data) => ipcRenderer.send(channel, data),
     receiveFromMain: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args))
 })
