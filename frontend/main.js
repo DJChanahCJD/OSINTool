@@ -10,8 +10,8 @@ let mainWindow;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
+        width: 1440,
+        height: 960,
         titleBarStyle: 'hidden',  // 隐藏默认标题栏
         titleBarOverlay: true,  // 使用自定义标题栏
         // frame: false,  // 禁用默认边框

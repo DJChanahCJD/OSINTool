@@ -6,11 +6,7 @@
     <title>OSINTool</title>
     <link rel="stylesheet" href="./styles/index.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
-    <style>
-        [v-cloak] {
-            display: none;
-        }
-    </style>
+    <style>[v-cloak] { display: none !important;}</style>
     <!-- 预加载另一个页面 -->
     <link rel="preload" href="index.html">
     <link rel="preload" href="edit.html">
@@ -47,9 +43,8 @@
                         style="width: 100%"
                         v-loading="loading"
                         v-model:selection="selectedTasks"
-                        row-key="id"
+                        :row-key="getRowKey"
                         highlight-current-row
-                        reserve-selection
                         border
                         stripe
                         @selection-change="handleSelectionChange"
@@ -57,6 +52,7 @@
                         @filter-change="handleFilterChange">
                         <el-table-column
                             type="selection"
+                            :reserve-selection="true"
                             width="40">
                         </el-table-column>
                         <el-table-column
@@ -160,6 +156,7 @@
                         </template>
                     </el-table>
                     <el-pagination
+                        class="pagination"
                         v-if="totalTasks > 0"
                         :current-page="currentPage"
                         :page-size="perPage"
@@ -181,245 +178,245 @@
             </div>
         </transition>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
-    <script>
-        new Vue({
-            el: '#app',
-            data: {
-                pageReady: false,
-                tasks: [],
-                loading: false,
-                searchQuery: '',
-                scheduleTypeMap: {
-                    'fixed': '定时',
-                    'interval': '间隔',
-                    'random': '随机'
-                },
-                isActiveMap: [
-                    { text: '运行中', value: true },
-                    { text: '已停止', value: false }
-                ],
-                currentPage: 1,
-                perPage: 10,
-                totalTasks: 0,
-                // 新增排序与筛选状态
-                sort: [],      // 例如：[{ sortField: 'title', sortOrder: 'asc' }]
-                filters: {},     // 例如：{ scheduleType: ['fixed'] }
-                selectedTasks: [],  // 任务多选，用于批量操作
+</body>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+            pageReady: false,
+            tasks: [],
+            loading: false,
+            searchQuery: '',
+            scheduleTypeMap: {
+                'fixed': '定时',
+                'interval': '间隔',
+                'random': '随机'
             },
-            computed: {
-                getFilters() {
-                    return (map) => {
-                        if (Array.isArray(map)) {
-                            return map;
-                        }
-                        return Object.entries(map).map(([value, text]) => ({ text, value }));
-                    };
-                },
-                scheduleTypeFilters() {
-                    return this.getFilters(this.scheduleTypeMap);
-                },
-                isActiveFilters() {
-                    return this.getFilters(this.isActiveMap);
+            isActiveMap: [
+                { text: '运行中', value: true },
+                { text: '已停止', value: false }
+            ],
+            currentPage: 1,
+            perPage: 10,
+            totalTasks: 0,
+            // 新增排序与筛选状态
+            sort: [],      // 例如：[{ sortField: 'title', sortOrder: 'asc' }]
+            filters: {},     // 例如：{ scheduleType: ['fixed'] }
+            selectedTasks: [],  // 任务多选，用于批量操作
+        },
+        computed: {
+            getFilters() {
+                return (map) => {
+                    if (Array.isArray(map)) {
+                        return map;
+                    }
+                    return Object.entries(map).map(([value, text]) => ({ text, value }));
+                };
+            },
+            scheduleTypeFilters() {
+                return this.getFilters(this.scheduleTypeMap);
+            },
+            isActiveFilters() {
+                return this.getFilters(this.isActiveMap);
+            }
+        },
+        methods: {
+            getScheduleTypeTag(type) {
+                const tagMap = {
+                    'fixed': 'primary',
+                    'interval': 'success',
+                    'random': 'warning'
+                };
+                return tagMap[type] || 'info';
+            },
+            getRowKey(row) { return row.id;},
+            handleSelectionChange(val) {this.selectedTasks = val;},
+            // 通用批量操作函数
+            async batchOperation(operation, apiCall) {
+                if (this.selectedTasks.length === 0) {
+                    this.$message.warning('请先选择任务');
+                    return;
                 }
-            },
-            methods: {
-                getScheduleTypeTag(type) {
-                    const tagMap = {
-                        'fixed': 'primary',
-                        'interval': 'success',
-                        'random': 'warning'
-                    };
-                    return tagMap[type] || 'info';
-                },
-                handleSelectionChange(val) {this.selectedTasks = val;},
-                // 通用批量操作函数
-                async batchOperation(operation, apiCall) {
-                    if (this.selectedTasks.length === 0) {
-                        this.$message.warning('请先选择任务');
-                        return;
-                    }
-                    try {
-                        await this.$confirm(`此操作将${operation}选中的${this.selectedTasks.length}个任务，是否继续？`, '提示', {
-                            confirmButtonText: '确定',
-                            cancelButtonText: '取消',
-                            type: 'warning'
-                        });
+                try {
+                    await this.$confirm(`此操作将${operation}选中的${this.selectedTasks.length}个任务，是否继续？`, '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    });
 
-                        const taskIds = this.selectedTasks.map(task => task.id);
-                        await apiCall(taskIds);
-                        await this.loadTasks();
-                        this.selectedTasks = [];
-                        this.$message.success({
-                            message: `${operation}成功`,
-                            duration: 2000
-                        });
-                    } catch (error) {
-                        if (error !== 'cancel') {
-                            this.$message.error({
-                                message: `${operation}失败`,
-                                duration: 3000
-                            });
-                            console.error('Batch operation error:', error);
-                        }
-                    }
-                },
-                async deleteSelectedTasks() { await this.batchOperation('删除', window.api.deleteTasks);},
-                async runSelectedTasks() { await this.batchOperation('启动', window.api.runTasks);},
-                async stopSelectedTasks() { await this.batchOperation('停止', window.api.stopTasks);},
-                // 根据 Element UI 内置的排序事件更新排序条件
-                handleSortChange({ column, prop, order }) {
-                    // 如果需要支持多列排序，可以在这里判断（例如判断是否按住 Shift 键），本例只处理单列排序
-                    this.sort = []; // 清空之前的排序条件
-                    if (order) {
-                        // Element UI 中 order 的值为 'ascending' 或 'descending'
-                        this.sort.push({
-                            sortField: prop,
-                            sortOrder: order === 'ascending' ? 'asc' : 'desc'
-                        });
-                    }
-                    // 每次排序变化后，重新加载数据
-                    this.loadTasks();
-                },
-                // 处理筛选变化，参数 filters 为对象，形如 { scheduleType: ['fixed', 'interval'], ... }
-                handleFilterChange(filters) {
-                    // 保存筛选条件
-                    const tableColumns = this.$refs.table.columns;
-                    console.log("tableColumns：", tableColumns)
-                    const newFilters = {};
-                    for (const [columnKey, values] of Object.entries(filters)) {
-                        console.log(columnKey, values)
-                        const column = tableColumns.find(col => col.id === columnKey);
-                        if (column) {
-                            newFilters[column.property] = values;
-                        }
-                    }
-                    this.filters = newFilters;
-                    // 重新加载数据
-                    this.loadTasks();
-                },
-                // 防抖处理的函数，使用 lodash.debounce
-                onSearchInput: _.debounce(function() {
-                    this.currentPage = 1;  // 重置当前页为1
-                    this.loadTasks();
-                    console.log("onSeerchInput")
-                }, 500),  // 设置500ms的延迟
-                async loadTasks() {
-                    this.loading = true;
-                    try {
-                      // 整合所有查询参数
-                      const params = {
-                        page: this.currentPage,
-                        perPage: this.perPage,
-                        searchQuery: this.searchQuery,
-                        sort: JSON.stringify(this.sort),
-                        filters: JSON.stringify(this.filters)
-                      };
-                      console.log('Fetching tasks with params:', params);
-                      const response = await window.api.getTasksPaginated(params);
-                      this.tasks = Array.isArray(response.data) ? response.data : [];
-                      this.totalTasks = response.total;
-                      localStorage.setItem('params', JSON.stringify(params));
-                    } catch (error) {
-                      this.$message.error({
-                        message: '加载任务失败',
-                        duration: 3000
-                      });
-                      console.error('Load tasks error:', error);
-                    } finally {
-                      this.loading = false;
-                    }
-                },
-                handlePageChange(page) {
-                    this.currentPage = page;
-                    this.loadTasks();
-                },
-                handlePageSizeChange(size) {
-                    this.perPage = size;
-                    this.loadTasks();
-                },
-                createTask() {
-                    // 清除本地存储的任务ID
-                    localStorage.removeItem('currentTaskId');
-                    window.location.href = 'edit.html';
-                },
-                editTask(task) {
-                    // 存储要编辑的任务ID
-                    localStorage.setItem('currentTaskId', JSON.stringify(task.id));
-                    window.location.href = `edit.html?id=${task.id}`;
-                },
-                async toggleTaskStatus(task) {
-                    try {
-                        await window.api.updateTaskStatus(task.id, !task.isActive);
-                        await this.loadTasks();
-                        this.$message.success({
-                            message: `任务${task.isActive ? '停止' : '启动'}成功`,
-                            duration: 2000
-                        });
-                    } catch (error) {
+                    const taskIds = this.selectedTasks.map(task => task.id);
+                    await apiCall(taskIds);
+                    await this.loadTasks();
+                    this.selectedTasks = [];
+                    this.$message.success({
+                        message: `${operation}成功`,
+                        duration: 2000
+                    });
+                } catch (error) {
+                    if (error !== 'cancel') {
                         this.$message.error({
-                            message: `任务${task.isActive ? '停止' : '启动'}失败`,
+                            message: `${operation}失败`,
                             duration: 3000
                         });
-                        console.error('Toggle task status error:', error);
+                        console.error('Batch operation error:', error);
                     }
-                },
-                async deleteTask(task) {
-                    try {
-                        await this.$confirm('此操作将永久删除该任务, 是否继续?', '提示', {
-                            confirmButtonText: '确定',
-                            cancelButtonText: '取消',
-                            type: 'warning'
-                        });
-
-                        await window.api.deleteTask(task.id);
-                        await this.loadTasks();
-                        this.$message.success({
-                            message: '删除成功',
-                            duration: 2000
-                        });
-                    } catch (error) {
-                        if (error !== 'cancel') {
-                            this.$message.error({
-                                message: '删除失败',
-                                duration: 3000
-                            });
-                            console.error('Delete task error:', error);
-                        }
-                    }
-                },
+                }
             },
-            async mounted() {
-                try {
-                    // 从本地存储中获取参数（简单状态存储，就不做多窗口了）
-                    const storedParams = localStorage.getItem('params');
-                    if (storedParams) {
-                        const params = JSON.parse(storedParams);
-                        this.currentPage = params.page;
-                        this.perPage = params.perPage;
-                        this.searchQuery = params.searchQuery;
-                        this.sort = JSON.parse(params.sort);
+            async deleteSelectedTasks() { await this.batchOperation('删除', window.api.deleteTasks);},
+            async runSelectedTasks() { await this.batchOperation('启动', window.api.runTasks);},
+            async stopSelectedTasks() { await this.batchOperation('停止', window.api.stopTasks);},
+            // 根据 Element UI 内置的排序事件更新排序条件
+            handleSortChange({ column, prop, order }) {
+                // 如果需要支持多列排序，可以在这里判断（例如判断是否按住 Shift 键），本例只处理单列排序
+                this.sort = []; // 清空之前的排序条件
+                if (order) {
+                    // Element UI 中 order 的值为 'ascending' 或 'descending'
+                    this.sort.push({
+                        sortField: prop,
+                        sortOrder: order === 'ascending' ? 'asc' : 'desc'
+                    });
+                }
+                // 每次排序变化后，重新加载数据
+                this.loadTasks();
+            },
+            // 处理筛选变化，参数 filters 为对象，形如 { scheduleType: ['fixed', 'interval'], ... }
+            handleFilterChange(filters) {
+                // 保存筛选条件
+                const tableColumns = this.$refs.table.columns;
+                console.log("tableColumns：", tableColumns)
+                const newFilters = {};
+                for (const [columnKey, values] of Object.entries(filters)) {
+                    console.log(columnKey, values)
+                    const column = tableColumns.find(col => col.id === columnKey);
+                    if (column) {
+                        newFilters[column.property] = values;
                     }
+                }
+                this.filters = newFilters;
+                // 重新加载数据
+                this.loadTasks();
+            },
+            // 防抖处理的函数，使用 lodash.debounce
+            onSearchInput: _.debounce(function() {
+                this.currentPage = 1;  // 重置当前页为1
+                this.loadTasks();
+                console.log("onSeerchInput")
+            }, 500),  // 设置500ms的延迟
+            async loadTasks() {
+                this.loading = true;
+                try {
+                  // 整合所有查询参数
+                  const params = {
+                    page: this.currentPage,
+                    perPage: this.perPage,
+                    searchQuery: this.searchQuery,
+                    sort: JSON.stringify(this.sort),
+                    filters: JSON.stringify(this.filters)
+                  };
+                  console.log('Fetching tasks with params:', params);
+                  const response = await window.api.getTasksPaginated(params);
+                  this.tasks = Array.isArray(response.data) ? response.data : [];
+                  this.totalTasks = response.total;
+                  localStorage.setItem('params', JSON.stringify(params));
+                } catch (error) {
+                  this.$message.error({
+                    message: '加载任务失败',
+                    duration: 3000
+                  });
+                  console.error('Load tasks error:', error);
+                } finally {
+                  this.loading = false;
+                }
+            },
+            handlePageChange(page) {
+                this.currentPage = page;
+                this.loadTasks();
+            },
+            handlePageSizeChange(size) {
+                this.perPage = size;
+                this.loadTasks();
+            },
+            createTask() {
+                // 清除本地存储的任务ID
+                localStorage.removeItem('currentTaskId');
+                window.location.href = 'edit.html';
+            },
+            editTask(task) {
+                // 存储要编辑的任务ID
+                localStorage.setItem('currentTaskId', JSON.stringify(task.id));
+                window.location.href = `edit.html?id=${task.id}`;
+            },
+            async toggleTaskStatus(task) {
+                try {
+                    await window.api.updateTaskStatus(task.id, !task.isActive);
                     await this.loadTasks();
-                    this.$nextTick(() => {
-                        this.pageReady = true;
+                    this.$message.success({
+                        message: `任务${task.isActive ? '停止' : '启动'}成功`,
+                        duration: 2000
                     });
                 } catch (error) {
                     this.$message.error({
-                        message: '页面加载失败',
+                        message: `任务${task.isActive ? '停止' : '启动'}失败`,
                         duration: 3000
                     });
-                    console.error('Page load error:', error);
+                    console.error('Toggle task status error:', error);
                 }
+            },
+            async deleteTask(task) {
+                try {
+                    await this.$confirm('此操作将永久删除该任务, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    });
+
+                    await window.api.deleteTask(task.id);
+                    await this.loadTasks();
+                    this.$message.success({
+                        message: '删除成功',
+                        duration: 2000
+                    });
+                } catch (error) {
+                    if (error !== 'cancel') {
+                        this.$message.error({
+                            message: '删除失败',
+                            duration: 3000
+                        });
+                        console.error('Delete task error:', error);
+                    }
+                }
+            },
+        },
+        async mounted() {
+            try {
+                // 从本地存储中获取参数（简单状态存储，就不做多窗口了）
+                const storedParams = localStorage.getItem('params');
+                if (storedParams) {
+                    const params = JSON.parse(storedParams);
+                    this.currentPage = params.page;
+                    this.perPage = params.perPage;
+                    this.searchQuery = params.searchQuery;
+                    this.sort = JSON.parse(params.sort);
+                }
+                await this.loadTasks();
+                this.$nextTick(() => {
+                    this.pageReady = true;
+                });
+            } catch (error) {
+                this.$message.error({
+                    message: '页面加载失败',
+                    duration: 3000
+                });
+                console.error('Page load error:', error);
             }
-        });
-        window.api.receiveFromMain('quit', () => {
-            console.log('quit')
-            localStorage.removeItem('params');  // 退出时清除本地存储的参数
-        });
-    </script>
-</body>
+        }
+    });
+    window.api.receiveFromMain('quit', () => {
+        console.log('quit')
+        localStorage.removeItem('params');  // 退出时清除本地存储的参数
+    });
+</script>
 </html>
