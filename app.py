@@ -280,7 +280,7 @@ def execute_task_parsing(task, max_count):
     if task['dataFormat'] == 'html':
         xpaths = task['xpaths']
         parser = HTMLParser(task['url'], xpaths['table'], xpaths['row'], xpaths['next_page'], patterns, max_count)
-        table = parser.parse()
+        table = parser.parse(task['cookies'])
     else:
         parser = ParserFactory.get_parser(task['dataFormat'])
         table = parser.parse(task['url'], task['parseType'], columns, patterns, task['table_pattern'], max_count)

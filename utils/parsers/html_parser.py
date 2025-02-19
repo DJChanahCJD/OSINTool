@@ -2,11 +2,12 @@ import random
 from playwright.sync_api import sync_playwright
 from lxml import html
 from utils.common import get_random_user_agent
+# from urllib.parse import urlparse
 import re
 import time
 
 class HTMLParser:
-    def __init__(self, url, table_xpath, rows_xpath, next_page_xpath, patterns, maxCount=1000):
+    def __init__(self, url, table_xpath, rows_xpath, next_page_xpath, patterns, maxCount=10):
         self.url = url
         self.table_xpath = table_xpath
         self.rows_xpath = rows_xpath
@@ -18,10 +19,32 @@ class HTMLParser:
     def get_content(self):
         return self.content
 
-    def parse(self):
+    def parse(self, cookies=None):
+        # 如果有cookie字符串，处理为cookie格式
+        cookie_dict = {}
+        if cookies:
+            cookie_list = cookies.split(';')
+            for cookie in cookie_list:
+                # 分割cookie并将其转换为字典形式
+                key, value = cookie.strip().split('=', 1)
+                cookie_dict[key] = value
+
+
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)  # Set headless=True to disable browser UI
             page = browser.new_page(extra_http_headers={'User-Agent': get_random_user_agent()})
+
+            # 如果传入了cookie，设置cookies
+            if cookie_dict:
+                print("设置cookies...", cookie_dict)
+                # # 通过 urlparse 从 URL 中提取域名
+                # parsed_url = urlparse(self.url)
+                # domain = parsed_url.netloc  # 提取域名部分
+                page.context.add_cookies([{
+                    'name': key,
+                    'value': value,
+                    'url': self.url,
+                } for key, value in cookie_dict.items()])
 
             page.goto(self.url)
 

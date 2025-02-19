@@ -30,7 +30,7 @@
             <div v-if="pageReady" class="container">
                 <div class="task-header">
                     <el-button icon="el-icon-back" @click="backToList">返回列表</el-button>
-                    <el-input v-model="currentTask.title" placeholder="任务名称" style="width: 200px;" clearable>
+                    <el-input v-model="currentTask.title" placeholder="任务名称" style="width: 200px;">
                     </el-input>
                     <span style="font-size:12px; color: grey;">id: {{currentTask.id}}</span>
                     <el-button :type="currentTask.isActive ? 'success' : 'danger'"
@@ -52,7 +52,6 @@
                     <el-form-item label="网址">
                         <el-input v-model="currentTask.url" placeholder="请输入网址或本地文件路径，如: http://example.com 或 file://path/to/file"></el-input>
                     </el-form-item>
-                    </el-col>
                     <el-form label-width="80px">
                         <el-row :gutter="20">
                             <el-col :span="6">
@@ -118,6 +117,15 @@
                     </template>
 
                     <template v-else>
+                        <el-form label-width="80px">
+                            <el-row :gutter="20">
+                                <el-col :span="12">
+                                    <el-form-item label="Cookies">
+                                        <el-input v-model="currentTask.cookies" placeholder="（可空）请复制粘贴浏览器的Cookies，如bid=xxx; xyz=999; ..."></el-input>
+                                    </el-form-item>
+                                </el-col>
+                            </el-row>
+                        </el-form>
                         <el-form label-width="80px">
                             <el-row :gutter="20">
                               <el-col :span="6">
@@ -283,6 +291,7 @@
                 isActive: false,
                 maxCount: 10,    // 最多爬取数据数量,
                 crawlMode: 'general',
+                cookies: '',
             },
             specialValues: [
                 { value: 'attack_time', label: '爬取时间' },
@@ -444,6 +453,7 @@
                     isActive: false,
                     maxCount: 10,    // 最多爬取数据数量
                     crawlMode: 'general',
+                    cookies: '',
                 };
                 this.originalTask = JSON.parse(JSON.stringify(this.currentTask));
             },
@@ -557,92 +567,101 @@
                 }
             },
             validateData() {
+                // 定义错误提示函数，减少重复代码
+                const showWarning = (message) => {
+                    this.$message.warning(message);
+                    return false;
+                };
+
                 // 基本验证
                 if (!this.currentTask.title.trim()) {
-                    this.$message.warning('请输入任务名称');
-                    return false;
+                    return showWarning('请输入任务名称');
                 }
-                if (!this.currentTask.url.trim() || !/^https?:\/\/.+/i.test(this.currentTask.url) && !/file:\/\/.+/i.test(this.currentTask.url)) {
-                    this.$message.warning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
-                    return false;
+
+                const isValidUrl = /^https?:\/\/.+/i.test(this.currentTask.url) || /file:\/\/.+/i.test(this.currentTask.url);
+                if (!this.currentTask.url.trim() ||!isValidUrl) {
+                    return showWarning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
                 }
+
                 if (!this.currentTask.dataFormat) {
-                    this.$message.warning('请选择数据格式');
-                    return false;
+                    return showWarning('请选择数据格式');
                 }
-                if (this.currentTask.scheduleType === 'fixed' && (!this.currentTask.days || !this.currentTask.execTime)) {
-                    this.$message.warning('请填写定时任务的天数和执行时间');
-                    return false;
+
+                if (this.currentTask.dataFormat!== 'html' && this.table_pattern &&!this.table_pattern.trim()) {
+                    try {
+                        new RegExp(this.table_pattern);
+                    } catch (error) {
+                        return showWarning('表格正则匹配不合法，请先在https://regex101.com/ 验证是否匹配');
+                    }
                 }
-                if (this.currentTask.scheduleType === 'interval' && !this.currentTask.interval) {
-                    this.$message.warning('请填写间隔时间');
-                    return false;
+
+                if (this.currentTask.scheduleType === 'fixed' && (!this.currentTask.days ||!this.currentTask.execTime)) {
+                    return showWarning('请填写定时任务的天数和执行时间');
+                }
+
+                if (this.currentTask.scheduleType === 'interval' &&!this.currentTask.interval) {
+                    return showWarning('请填写间隔时间');
                 }
 
                 // xpath验证
                 if (this.currentTask.dataFormat === 'html') {
-                    // 简单的 XPath 正则验证
                     const xpathRegex = /^(\/\/?|@|[\w-]+|\[.*?\]|\(.*?\)|\*|@[\w-]+|\.\.|\.)/;
 
-                    if (!this.currentTask.xpaths.table.trim() || !xpathRegex.test(this.currentTask.xpaths.table)) {
-                        this.$message.warning('请输入合法表格XPath');
-                        return false;
-                    }
-                    if (!this.currentTask.xpaths.row.trim() || !xpathRegex.test(this.currentTask.xpaths.row)) {
-                        this.$message.warning('请输入合法行XPath');
-                        return false;
-                    }
-                    if (this.currentTask.xpaths.next_page && !xpathRegex.test(this.currentTask.xpaths.next_page)) {
-                        this.$message.warning('请输入合法下一页按钮XPath');
-                        return false;
-                    }
+                    const validateXPath = (xpath, message) => {
+                        if (!xpath.trim() ||!xpathRegex.test(xpath)) {
+                            return showWarning(message);
+                        }
+                        return true;
+                    };
+
+                    if (!validateXPath(this.currentTask.xpaths.table, '请输入合法表格XPath')) return false;
+                    if (!validateXPath(this.currentTask.xpaths.row, '请输入合法行XPath')) return false;
+                    if (this.currentTask.xpaths.next_page &&!validateXPath(this.currentTask.xpaths.next_page, '请输入合法下一页按钮XPath')) return false;
+
                     // 去掉多余空格
                     this.currentTask.xpaths.table = this.currentTask.xpaths.table.trim();
                     this.currentTask.xpaths.row = this.currentTask.xpaths.row.trim();
                     this.currentTask.xpaths.next_page = this.currentTask.xpaths.next_page.trim();
                 }
 
-                // 正则验证
+                // 解析值验证
                 if (!this.currentTask.parseValues || this.currentTask.parseValues.length === 0) {
-                    this.$message.warning('请添加解析值');
-                    return false;
+                    return showWarning('请添加解析值');
                 }
-                if (this.currentTask.parseValues.some(item => !item.key.trim())) {
-                    this.$message.warning('解析字段不能为空');
-                    return false;
+
+                if (this.currentTask.parseValues.some(item =>!item.key.trim())) {
+                    return showWarning('解析字段不能为空');
                 }
-                // 正则验证
+
+                // 其他值验证
                 if (this.currentTask.otherValues.some(item =>!item.source.trim() ||!item.target.trim())) {
-                    this.$message.warning('源值和目标值不能为空');
-                    return false;
+                    return showWarning('源值和目标值不能为空');
                 }
+
+                // 正则表达式验证
                 if (this.currentTask.parseType === 1) {
                     for (let item of this.currentTask.parseValues) {
                         try {
                             new RegExp(item.pattern);
                         } catch (error) {
-                            this.$message.warning('正则表达式不合法，请先在https://regex101.com/ 验证是否匹配');
+                            return showWarning(`${item.key}的正则表达式不合法，请先在https://regex101.com/ 验证是否匹配`);
                         }
                     }
                 }
-                /*for (let item of this.currentTask.parseValues) {
-                    if (item.parseType === 'regex' && item.keyword &&!item.keyword.trim()) {
-                        this.$message.warning('正则表达式不能为空');
-                        return false;
+
+                // 最大爬取数量验证
+                if (!this.currentTask.maxCount) {
+                    return showWarning('请填写最多爬取数据数量');
+                }
+
+                // cookies 格式验证
+                if (this.currentTask.cookies) {
+                    const cookiesRegex = /^([^=;]+=[^;]*;?\s*)+$/;
+                    if (!cookiesRegex.test(this.currentTask.cookies)) {
+                        return showWarning('请输入合法的Cookies格式，如bid=xxx; xyz=999; ...');
                     }
-                    //详细验证正则表达式
-                    if (item.parseType === 'regex' && item.keyword) {
-                        try {
-                            new RegExp(item.keyword);
-                        } catch (error) {
-                            this.$message.warning('正则表达式不合法，请先在https://regex101.com/ 验证是否匹配');
-                            return false;
-                        }
-                    }
-                    // 去掉多余空格
-                    item.key = item.key.trim();
-                    item.keyword = item.keyword.trim();
-                }*/
+                }
+
                 return true;
             },
             addParseValue() {
