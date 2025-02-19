@@ -1,4 +1,5 @@
 import random
+import time
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from tinydb import TinyDB, Query
@@ -270,8 +271,6 @@ def batch_stop_tasks():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 def execute_task_parsing(task, max_count):
-    # 根据任务设置提取解析规则
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     parse_rules = task['parseValues']
     other_rules = task['otherValues']
     columns = {rule['key']: rule['index'] for rule in parse_rules}
@@ -287,7 +286,7 @@ def execute_task_parsing(task, max_count):
         table = parser.parse(task['url'], task['parseType'], columns, patterns, task['table_pattern'], max_count)
 
     # 添加其他值
-    result = addOtherValues(table, other_rules, parser.get_content(), current_time)
+    result = addOtherValues(table, other_rules, parser.get_content())
     return result
 
 def run_scheduled_task(task_id):
@@ -320,7 +319,8 @@ def schedule_task(task):
     print(f"已添加定时任务: {task_id}")
     print(f"任务详情: {task}")
 
-def addOtherValues(data, other_rules, html_content, current_time):
+def addOtherValues(data, other_rules, html_content):
+    specialValues = getSpecialValues()
     result = []
     memo = {}
     for item in data:
@@ -333,10 +333,24 @@ def addOtherValues(data, other_rules, html_content, current_time):
                 value = memo[rule['source']]
                 item[rule['source']] = value
             elif rule['valueType'] == 'special':
-                if rule['target'] == 'attack_time':
-                    item[rule['source']] = current_time
+                value = specialValues.get(rule['target'])
+                if value is not None:
+                    item[rule['source']] = value
+                else:
+                    print(f"Key {rule['target']} not found in specialValues.")
+
         result.append(item)
     return result
+
+# 生成特殊值字典
+def getSpecialValues():
+    current_timestamp = int(time.time())
+    current_time_str = datetime.fromtimestamp(current_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    specialValues = {
+        'attack_time': current_time_str,
+        'attack_timestamp': current_timestamp
+    }
+    return specialValues
 
 def init_scheduler():
     print("初始化调度器...")
