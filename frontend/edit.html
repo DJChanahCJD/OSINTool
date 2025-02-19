@@ -559,7 +559,17 @@
                     const currentIndex = this.tasks.findIndex(task => task.id === this.currentTask.id);
                     await window.api.deleteTask(this.currentTask.id);
                     this.$message.success('删除成功');
+                    if (currentIndex >= 0) {
+                        // 如果删除的是最后一个任务，选择前一个任务
+                        if (currentIndex === this.tasks.length - 1) {
+                            this.currentTask = this.tasks[currentIndex - 1] || null;
+                        } else {
+                            // 否则选择删除后的下一个任务
+                            this.currentTask = this.tasks[currentIndex + 1] || null;
+                        }
+                    }
                     await this.loadTasks();
+
                 } catch (error) {
                     if (error !== 'cancel') {
                         this.$message.error('删除失败: ' + error.message);
