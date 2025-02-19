@@ -270,6 +270,79 @@ def batch_stop_tasks():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# 批量导出
+@app.route('/api/tasks/batch_export', methods=['POST'])
+def batch_export_tasks():
+    try:
+        data = request.json
+        task_ids = data.get('taskIds', [])
+        if not task_ids:
+            return jsonify({"error": "No task IDs provided"}), 400
+
+        Task = Query()
+        tasks = tasks_table.search(Task.id.one_of(task_ids))
+        return jsonify({"success": True, "tasks": tasks})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 通过json导入
+@app.route('/api/tasks/import', methods=['POST'])
+def import_tasks():
+    try:
+        # 获取请求中的 JSON 数据
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        if not isinstance(data, list):
+            return jsonify({"error": "Invalid JSON data format, must be list"}), 400
+        # 定义一个样本任务，可根据实际情况调整
+        sample_task = {
+            "cookies": "",
+            "crawlMode": "general",
+            "dataFormat": "txt",
+            "days": 1,
+            "execTime": "00:00",
+            "id": "",
+            "interval": 1,
+            "isActive": False,
+            "lastRunTime": "",
+            "maxCount": 10,
+            "next_run_time": None,
+            "otherValues": [],
+            "parseType": 0,
+            "parseValues": [],
+            "schedule": "00 00 */1 * *",
+            "scheduleType": "fixed",
+            "table_pattern": "",
+            "title": "",
+            "url": "",
+            "xpaths": {
+                "next_page": "",
+                "row": "",
+                "table": ""
+            }
+        }
+
+        for task in data:
+            task_id = task.get('id')
+            if task_id:
+                existing_task = tasks_table.get(Query().id == task_id)
+                if existing_task:
+                    print(f"任务 {task_id} 已存在，跳过导入")
+                    continue
+            # 遍历样本任务的字段，将缺失的字段设为空
+            for field, default_value in sample_task.items():
+                if field not in task:
+                    task[field] = default_value
+
+            tasks_table.insert(task)
+
+        return jsonify({"success": True, "message": "Tasks imported successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 def execute_task_parsing(task, max_count):
     parse_rules = task['parseValues']
     other_rules = task['otherValues']

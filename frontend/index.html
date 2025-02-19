@@ -30,10 +30,26 @@
                         style="width: 300px;">
                         </el-input>
                         <span class="button-group">
+                            <el-button type="info" icon="el-icon-download" @click="showImportDialog">批量导入</el-button>
                             <el-button type="primary" icon="el-icon-plus" @click="createTask">新建任务</el-button>
                         </span>
                     </div>
                 </div>
+
+                <el-dialog title="导入任务" :visible.sync="importDialogVisible" width="500px" append-to-body>
+                    <el-input
+                        type="textarea"
+                        v-model="importJson"
+                        placeholder="将 JSON 数据粘贴到此处，格式为 JSON 数组：[
+                        {'id': '123', 'title': 'JSON', 'url': 'http://abc.com', ...},
+                        ...]"
+                        rows="10">
+                    </el-input>
+                    <div slot="footer" class="dialog-footer">
+                        <el-button @click="importDialogVisible = false">取消</el-button>
+                        <el-button type="primary" @click="importTasks">导入</el-button>
+                    </div>
+                </el-dialog>
 
                 <!-- 任务列表 -->
                 <div class="table-container">
@@ -169,6 +185,7 @@
                     <div class="footer-action-bar" v-if="selectedTasks.length > 0">
                         <span style="margin-right: 20px;">已选中 {{ selectedTasks.length }} 项</span>
                         <span class="footer-action-button">
+                            <el-button type="info" @click="exportSelectedTasks">批量导出</el-button>
                             <el-button type="success" @click="runSelectedTasks">批量启动</el-button>
                             <el-button type="warning" @click="stopSelectedTasks">批量停止</el-button>
                             <el-button type="danger" @click="deleteSelectedTasks">批量删除</el-button>
@@ -206,6 +223,8 @@
             sort: [],      // 例如：[{ sortField: 'title', sortOrder: 'asc' }]
             filters: {},     // 例如：{ scheduleType: ['fixed'] }
             selectedTasks: [],  // 任务多选，用于批量操作
+            importDialogVisible: false,
+            importJson: '',
         },
         computed: {
             getFilters() {
@@ -265,15 +284,55 @@
                     }
                 }
             },
+            showImportDialog() {
+                this.importDialogVisible = true;
+                this.importJson = '';
+            },
+            async importTasks() {
+                try {
+                    const jsonData = JSON.parse(this.importJson);
+                    if (!Array.isArray(jsonData)) {
+                        this.$message.warning('导入的数据必须是数组格式');
+                        return;
+                    }
+                    for (const task of jsonData) {
+                        for (const field of ["id", "title", "url"]) {
+                            if (!task.hasOwnProperty(field)) {
+                                this.$message.warning(`任务 ${task.id || 'null'} 缺少必要字段: ${field}`);
+                                return;
+                            }
+                        }
+                    }
+                    await window.api.importTasks(jsonData);
+                    this.$message.success({ message: '导入成功', duration: 2000});
+                    this.importDialogVisible = false;
+                    this.loadTasks();
+                } catch (error) {
+                    this.$message.error({ message: `导入失败：${error}`, duration: 3000});
+                } finally {
+                    this.importDialogVisible = false;
+                    this.importJson = '';
+                }
+            },
+            async exportSelectedTasks() {
+                if (this.selectedTasks.length === 0) {
+                    this.$message.warning('请先选择任务');
+                    return;
+                }
+                try {
+                    const taskIds = this.selectedTasks.map(task => task.id);
+                    const isOk = await window.api.exportTasks(taskIds) || false;
+                    if (isOk) this.$message.success({ message: '导出成功', duration: 2000});
+                } catch (error) {
+                    this.$message.error({ message: `导出失败：${error}`, duration: 3000});
+                }
+            },
             async deleteSelectedTasks() { await this.batchOperation('删除', window.api.deleteTasks);},
             async runSelectedTasks() { await this.batchOperation('启动', window.api.runTasks);},
             async stopSelectedTasks() { await this.batchOperation('停止', window.api.stopTasks);},
-            // 根据 Element UI 内置的排序事件更新排序条件
             handleSortChange({ column, prop, order }) {
-                // 如果需要支持多列排序，可以在这里判断（例如判断是否按住 Shift 键），本例只处理单列排序
                 this.sort = []; // 清空之前的排序条件
                 if (order) {
-                    // Element UI 中 order 的值为 'ascending' 或 'descending'
                     this.sort.push({
                         sortField: prop,
                         sortOrder: order === 'ascending' ? 'asc' : 'desc'

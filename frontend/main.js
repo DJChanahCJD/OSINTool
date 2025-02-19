@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 
 const { setupTitlebar, attachTitlebarToWindow } = require("custom-electron-titlebar/main");
@@ -10,8 +10,8 @@ let mainWindow;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1440,
-        height: 960,
+        width: 1350,
+        height: 900,
         titleBarStyle: 'hidden',  // 隐藏默认标题栏
         titleBarOverlay: true,  // 使用自定义标题栏
         // frame: false,  // 禁用默认边框
@@ -41,6 +41,14 @@ function createWindow() {
     });
 
 }
+
+// 监听来自渲染进程的消息
+ipcMain.on('show-save-dialog', (event, options) => {
+    // 显示保存对话框
+    const result = dialog.showSaveDialogSync(BrowserWindow.getFocusedWindow(), options);
+    // 将结果返回给渲染进程
+    event.sender.send('save-dialog-result', result);
+});
 
 app.whenReady().then(() => {
     mainWindow = createWindow();

@@ -1,4 +1,4 @@
-const { contextBridge, shell, ipcRenderer } = require('electron')
+const { contextBridge, shell, ipcRenderer, dialog } = require('electron')
 const { Titlebar, TitlebarColor } = require("custom-electron-titlebar");
 const path = require('path');
 const fs = require('fs');
@@ -15,6 +15,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
 const baseURL = 'http://localhost:5000'; // 后端服务器地址
 const rootPath = path.resolve(__dirname, '..');  // 根目录
+const showSaveDialog = (options) => {
+    return new Promise((resolve) => {
+        // 向主进程发送消息，请求显示保存对话框
+        ipcRenderer.send('show-save-dialog', options);
+        // 监听主进程返回的结果
+        ipcRenderer.once('save-dialog-result', (event, result) => {
+            resolve(result);
+        });
+    });
+};
 
 contextBridge.exposeInMainWorld('api', {
     // 获取所有任务
@@ -118,6 +128,52 @@ contextBridge.exposeInMainWorld('api', {
             },
             body: JSON.stringify({ taskIds })
         }).then(response => response.json())
+    },
+    // 导入
+    importTasks: (jsonData) => {
+        return fetch(`${baseURL}/api/tasks/import`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData)
+        }).then(response => response.json());
+    },
+    // 批量导出
+    exportTasks: async (taskIds) => {
+        const response = await fetch(`${baseURL}/api/tasks/batch_export`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ taskIds })
+        });
+        const data = await response.json();
+
+        console.log(data);
+
+        // 打开文件保存对话框
+        const filePath = await showSaveDialog({
+            title: '选择导出文件的保存位置',
+            defaultPath: 'exported_tasks.json',
+            filters: [
+                { name: 'JSON Files', extensions: ['json'] }
+            ]
+        });
+
+        if (!filePath) {
+           return false;
+        }
+        console.log(filePath);
+
+        try {
+            // 将导出的数据写入文件
+            fs.writeFileSync(filePath, JSON.stringify(data['tasks'], null, 2));
+            return true;
+        } catch (error) {
+            console.error('导出文件时出错:', error);
+            return false;
+        }
     },
 
     // 打开根目录data/taskId
