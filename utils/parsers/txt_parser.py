@@ -1,105 +1,25 @@
-import re
 from .base import BaseParser
 
 class TXTParser(BaseParser):
-    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None, maxCount=1000):
-        """
-        解析TXT文件并根据传入的 columns 和 patterns 进行处理。
-        若parseType==0, 则通过 columns 根据索引定位列
-        若parseType==1, 则通过 patterns 对列值进行正则处理
-        使用正则匹配规则提取表格数据（这样的话，就不需要再对字段正则匹配了，但让其冗余吧）
-        """
+    def parse(self, url, table_type=0):
         self.load_content(url)
         table = []
-        lines = self.content.split('\n')  # 按行分割文件内容
-
-        print("========正在匹配表格行============")
-        print("请求参数:", url, parseType, columns, patterns, table_pattern)
+        lines = self.content.split('\n')
 
         for line in lines:
             line = line.strip()
-            if not line:  # 跳过空行
+            if not line or line.startswith('#'):    # 空行或注释行
                 continue
 
-            # 判断是否符合表格行的规则
-            match = re.match(table_pattern, line)   # re.match 从开头匹配，部分匹配也算成功
-            if match:
-                # 通过正则匹配提取表格单元格数据
-                row_data = match.groups()
-                if row_data:
-                    table.append(row_data)
-                    if len(table) >= maxCount:
-                        break
+            # 表格内容（获取完整表格，包括被注释的部分）
+            """
+                例如:
+                123.com  # 11:00  999
+                4434.com # 19:00  888
+            """
+            line = line.replace('#', '').strip()
+            if line:
+                table.append(line.split())
 
-        print("========匹配表格行完成============")
-        # 根据解析类型执行不同的处理
-        if parseType == 0:  # 按列索引解析
-            return self.convert_to_dict(table, columns, patterns)
-        elif parseType == 1:  # 如果是正则匹配类型，进行正则处理
-            return self.convert_to_dict_with_patterns(table, columns, patterns)
 
         return table
-
-    def is_table_line(self, line, table_pattern):
-        """ 判断一行是否符合表格行的规则 """
-        if table_pattern:
-            return re.match(table_pattern, line) is not None
-        return False  # 默认返回 False, 如果没有提供 table_pattern
-
-    def extract_table_data(self, line, table_pattern):
-        """ 使用正则提取表格行的单元格数据 """
-        match = re.match(table_pattern, line)
-        if match:
-            # 提取所有捕获组中的数据，返回作为列表
-            return match.groups()
-        return None  # 如果没有匹配到，则返回 None
-
-    def convert_to_dict(self, table, columns, patterns):
-        """将二维数组转换为字典列表，使用 columns 来选择特定的列"""
-        if not table:
-            return []
-
-        dict_list = []
-
-        # 将每一行转换为字典
-        for row in table:
-            row_dict = {}
-
-            # 使用 columns 映射索引并提取数据
-            for key, index in columns.items():
-                if index < len(row):  # 确保索引有效
-                    row_dict[key] = row[index]
-
-            dict_list.append(row_dict)
-
-        return dict_list
-
-    def convert_to_dict_with_patterns(self, table, columns, patterns):
-        """基于正则模式将整个表格转换为字典列表"""
-        if not table:
-            return []
-
-        dict_list = []
-
-        for row in table:
-            row_str = ' '.join(map(str, row))  # 将整行数据拼接成字符串
-            row_dict = {}
-
-            # 使用正则表达式对每一列数据进行处理
-            for key, pattern in patterns.items():
-                row_dict[key] = self.apply_pattern(row_str, pattern)
-
-            dict_list.append(row_dict)
-
-        return dict_list
-
-    def apply_pattern(self, value, pattern):
-        """应用正则表达式对值进行处理"""
-        try:
-            # 进行正则匹配
-            match = re.search(pattern, value)
-            if match:
-                return match.group(0)  # 返回第一个匹配结果
-        except re.error:
-            return value  # 如果正则表达式无效，则返回原值
-        return value

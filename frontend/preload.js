@@ -1,11 +1,13 @@
-const { contextBridge, shell, ipcRenderer, dialog } = require('electron')
+const { contextBridge, shell, ipcRenderer, dialog } = require('electron');
 const { Titlebar, TitlebarColor } = require("custom-electron-titlebar");
 const path = require('path');
 const fs = require('fs');
 
+// 设置自定义标题栏颜色
 const customColor = TitlebarColor.fromHex('#66B1FF');
+
+// 当 DOM 内容加载完成时，初始化自定义标题栏
 window.addEventListener('DOMContentLoaded', () => {
-    // Title bar implementation
     new Titlebar({
         backgroundColor: customColor,
         icon: '../logo.png',
@@ -15,6 +17,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 const baseURL = 'http://localhost:5000'; // 后端服务器地址
 const rootPath = path.resolve(__dirname, '..');  // 根目录
+
 const showSaveDialog = (options) => {
     return new Promise((resolve) => {
         // 向主进程发送消息，请求显示保存对话框
@@ -27,10 +30,16 @@ const showSaveDialog = (options) => {
 };
 
 contextBridge.exposeInMainWorld('api', {
-    // 获取所有任务
-    getTasks: () => {
-        return fetch(`${baseURL}/api/tasks`)
-            .then(response => response.json())
+    // 获取所有任务，支持分页和搜索
+    getTasks: (params = {}) => {
+        const { page = 1, per_page = 5, search_query = '' } = params;
+        const queryParams = new URLSearchParams({
+            page,
+            per_page,
+            search_query
+        });
+        return fetch(`${baseURL}/getTasks?${queryParams.toString()}`)
+            .then(response => response.json());
     },
 
     // 获取分页任务
@@ -38,16 +47,16 @@ contextBridge.exposeInMainWorld('api', {
         // 将对象参数转为查询字符串
         const queryParams = new URLSearchParams(params).toString();
         return fetch(`${baseURL}/api/tasks/paginated?${queryParams}`)
-            .then(response => response.json())
+            .then(response => response.json());
     },
 
     // 获取单个任务
     getTask: (taskId) => {
         return fetch(`${baseURL}/api/tasks/${taskId}`)
-            .then(response => response.json())
+            .then(response => response.json());
     },
 
-    // 创建任务
+    // 创建单个任务
     createTask: (task) => {
         return fetch(`${baseURL}/api/tasks`, {
             method: 'POST',
@@ -55,7 +64,7 @@ contextBridge.exposeInMainWorld('api', {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(task)
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
 
     // 更新任务
@@ -66,16 +75,17 @@ contextBridge.exposeInMainWorld('api', {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(task)
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
 
     // 删除任务
     deleteTask: (taskId) => {
         return fetch(`${baseURL}/api/tasks/${taskId}`, {
             method: 'DELETE'
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
 
+    // 更新任务状态
     updateTaskStatus: (taskId, isActive) => {
         return fetch(`${baseURL}/api/tasks/${taskId}/status`, {
             method: 'PUT',
@@ -83,20 +93,21 @@ contextBridge.exposeInMainWorld('api', {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ isActive })
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
 
+    // 解析任务
     parseTask: (taskId) => {
         return fetch(`${baseURL}/api/tasks/${taskId}/parse`, {
             method: 'POST'
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
 
     // 执行任务
     runTask: (taskId) => {
         return fetch(`${baseURL}/api/tasks/${taskId}/run`, {
             method: 'POST'
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
 
     // 批量删除任务
@@ -107,8 +118,9 @@ contextBridge.exposeInMainWorld('api', {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ taskIds })
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
+
     // 批量运行
     runTasks: (taskIds) => {
         return fetch(`${baseURL}/api/tasks/batch_start`, {
@@ -117,8 +129,9 @@ contextBridge.exposeInMainWorld('api', {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ taskIds })
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
+
     // 批量停止
     stopTasks: (taskIds) => {
         return fetch(`${baseURL}/api/tasks/batch_stop`, {
@@ -127,8 +140,9 @@ contextBridge.exposeInMainWorld('api', {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ taskIds })
-        }).then(response => response.json())
+        }).then(response => response.json());
     },
+
     // 导入
     importTasks: (jsonData) => {
         return fetch(`${baseURL}/api/tasks/import`, {
@@ -139,6 +153,7 @@ contextBridge.exposeInMainWorld('api', {
             body: JSON.stringify(jsonData)
         }).then(response => response.json());
     },
+
     // 批量导出
     exportTasks: async (taskIds) => {
         const response = await fetch(`${baseURL}/api/tasks/batch_export`, {
@@ -162,7 +177,7 @@ contextBridge.exposeInMainWorld('api', {
         });
 
         if (!filePath) {
-           return false;
+            return false;
         }
         console.log(filePath);
 
@@ -178,7 +193,6 @@ contextBridge.exposeInMainWorld('api', {
 
     // 打开根目录data/taskId
     openTaskResultFolder: (taskId) => {
-        const rootPath = path.resolve(__dirname, '..');  // 根目录
         const taskPath = path.join(rootPath, 'data', taskId);  // 对应id的任务解析结果目录
 
         // 检查路径是否存在，如果不存在则创建
@@ -199,6 +213,7 @@ contextBridge.exposeInMainWorld('api', {
         });
         return true;
     },
+
     // 上传脚本
     uploadScript: (id, file) => {
         const reader = new FileReader();
@@ -221,12 +236,15 @@ contextBridge.exposeInMainWorld('api', {
         reader.readAsText(file.raw);
         return true;
     },
+
     // 检查脚本是否存在
     checkScriptExists: (taskId) => {
         const scriptDir = path.join(rootPath, 'script');
         const scriptPath = path.join(scriptDir, `${taskId}.py`);
         return fs.existsSync(scriptPath);
     },
+
+    // 打开脚本文件
     openScriptFile: (id) => {
         const scriptDir = path.join(rootPath, 'script');
         const scriptPath = path.join(scriptDir, `${id}.py`);
@@ -236,6 +254,51 @@ contextBridge.exposeInMainWorld('api', {
             }
         });
     },
+
+    // 批量创建任务
+    batchCreateTasks: (tasks) => {
+        return fetch(`${baseURL}/api/tasks/batch`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(tasks)
+        }).then(response => response.json());
+    },
+
+    // 批量运行任务
+    batchRunTasks: (taskIds) => {
+        return fetch(`${baseURL}/api/tasks/batch/run`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(taskIds)
+        }).then(response => response.json());
+    },
+
+    // 批量下载 JSON 文件
+    batchDownloadTasks: (taskIds) => {
+        return fetch(`${baseURL}/api/tasks/batch/download`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(taskIds)
+        }).then(response => response.blob());
+    },
+
+    // 预览任务爬取结果
+    previewTaskResults: (taskId) => {
+        return fetch(`${baseURL}/api/tasks/${taskId}/preview`)
+            .then(response => response.json());
+    },
+
+    getTaskStats: () => {
+        return fetch(`${baseURL}/api/tasks/stats`)
+            .then(response => response.json());
+    },
+
     sendToRenderer: (channel, data) => ipcRenderer.send(channel, data),
     receiveFromMain: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args))
-})
+});
