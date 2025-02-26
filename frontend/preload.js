@@ -162,7 +162,7 @@ contextBridge.exposeInMainWorld('api', {
         });
 
         if (!filePath) {
-            return false;
+           return false;
         }
         console.log(filePath);
 
@@ -235,38 +235,6 @@ contextBridge.exposeInMainWorld('api', {
                 console.error('Failed to open script file:', error);
             }
         });
-    },
-    // 批量运行任务
-    batchRunTasks: (taskIds) => {
-        return fetch(`${baseURL}/api/tasks/batch/run`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(taskIds)
-        }).then(response => response.json());
-    },
-
-    // 批量下载 JSON 文件
-    batchDownloadTasks: (taskIds) => {
-        return fetch(`${baseURL}/api/tasks/batch/download`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(taskIds)
-        }).then(response => response.blob());
-    },
-
-    // 预览任务爬取结果
-    previewTaskResults: (taskId) => {
-        return fetch(`${baseURL}/api/tasks/${taskId}/preview`)
-            .then(response => response.json());
-    },
-
-    getTaskStats: () => {
-        return fetch(`${baseURL}/api/tasks/stats`)
-            .then(response => response.json());
     },
     sendToRenderer: (channel, data) => ipcRenderer.send(channel, data),
     receiveFromMain: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args))
