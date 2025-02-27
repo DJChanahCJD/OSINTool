@@ -12,5 +12,9 @@
     "custom-electron-titlebar": "^4.2.8",
     "electron": "^24.8.8",
     "osintool-client": "file:"
+  },
+  "devDependencies": {
+    "electron-vue": "^0.0.1",
+    "vue": "^3.5.13"
   }
 }
