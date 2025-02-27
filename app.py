@@ -181,8 +181,7 @@ def delete_task(task_id):
 @app.route('/api/tasks/batch_delete', methods=['DELETE'])
 def delete_tasks():
     try:
-        data = request.json
-        ids = data.get('taskIds', [])
+        ids = request.json
         tasks_table.remove(Query().id.one_of(ids))
         for task_id in ids:
             if scheduler.get_job(task_id):
@@ -455,39 +454,52 @@ def init_scheduler():
             schedule_task(task)
 
 
-@app.route('/api/tasks/batch', methods=['POST'])
-def batch_create_tasks():
-    data = request.json
-    if not isinstance(data, list):
-        return jsonify({'error': 'Invalid data format. Expected a list of tasks.'}), 400
-    created_task_ids = []
-    for task in data:
-        task_id = str(shortuuid.uuid())
-        task['id'] = task_id
-        tasks_table.insert(task)
-        if task.get('isActive', True):
-            schedule_task(task)
-        created_task_ids.append(task_id)
-    return jsonify({'created_task_ids': created_task_ids}), 201
+import requests
 
-
-# 异步运行单个任务
-async def async_run_task(session, task_id):
-    url = f'http://localhost:5000/api/tasks/{task_id}/run'
-    async with session.post(url) as response:
-        return await response.json()
+# 同步运行单个任务
+def sync_run_task(task_id, is_active):
+    url = f'http://localhost:5000/api/tasks/{task_id}/status'
+    data = {"isActive": is_active}
+    try:
+        response = requests.put(url, json=data)
+        content_type = response.headers.get('Content-Type', '')
+        if content_type.startswith('application/json'):
+            return response.json()
+        elif content_type.startswith('text/'):
+            # 处理文本类型的响应，指定编码为 UTF - 8
+            return response.text
+        else:
+            print(f"Unexpected response content type for task {task_id}: {content_type}")
+            print(f"Response content: {response.text}")
+            return {'success': False, 'error': 'Unexpected response content type'}
+    except Exception as e:
+        print(f"Error running task {task_id}: {e}")
+        return {'success': False, 'error': str(e)}
 
 
 # 批量运行任务
 @app.route('/api/tasks/batch/run', methods=['POST'])
-async def batch_run_tasks():
+def batch_run_tasks():
     task_ids = request.json
     if not isinstance(task_ids, list):
         return jsonify({'error': 'Invalid data format. Expected a list of task IDs.'}), 400
-    async with aiohttp.ClientSession() as session:
-        tasks = [async_run_task(session, task_id) for task_id in task_ids]
-        results = await asyncio.gather(*tasks)
+    results = []
+    for task_id in task_ids:
+        result = sync_run_task(task_id, True)
+        results.append(result)
     return jsonify({'results': results})
+
+@app.route('/api/tasks/batch/stop', methods=['POST'])
+def batch_stop_tasks():
+    task_ids = request.json
+    if not isinstance(task_ids, list):
+        return jsonify({'error': 'Invalid data format. Expected a list of task IDs.'}), 400
+    results = []
+    for task_id in task_ids:
+        result = sync_run_task(task_id, False)
+        results.append(result)
+    return jsonify({'results': results})
+
 
 
 # 批量下载JSON文件
