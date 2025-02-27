@@ -8,12 +8,12 @@ window.addEventListener('DOMContentLoaded', () => {
     // Title bar implementation
     new Titlebar({
         backgroundColor: customColor,
-        icon: '../logo.png',
+        icon: '../logo.svg',
         // shadow: false
     });
 });
 
-const baseURL = 'http://localhost:5000'; // 后端服务器地址
+const baseURL = 'http://localhost:5001'; // 后端服务器地址
 const rootPath = path.resolve(__dirname, '..');  // 根目录
 const showSaveDialog = (options) => {
     return new Promise((resolve) => {

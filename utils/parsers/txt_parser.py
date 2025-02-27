@@ -2,7 +2,7 @@ import re
 from .base import BaseParser
 
 class TXTParser(BaseParser):
-    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None, maxCount=1000):
+    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None, maxCount=50):
         """
         解析TXT文件并根据传入的 columns 和 patterns 进行处理。
         若parseType==0, 则通过 columns 根据索引定位列

@@ -7,39 +7,41 @@ import re
 import time
 
 class HTMLParser:
-    def __init__(self, url, table_xpath, rows_xpath, next_page_xpath, patterns, maxCount=10):
-        self.url = url
-        self.table_xpath = table_xpath
-        self.rows_xpath = rows_xpath
-        self.next_page_xpath = next_page_xpath
+    def __init__(self, task, maxCount=10):
+        parse_rules = task.get('parseValues')
+        xpaths = task.get('xpaths')
+        patterns = {rule['key']: rule['pattern'] for rule in parse_rules}
+
+        self.url = task.get('url')
+        self.before_action_group = task.get('before_action_group')
+        self.table_xpath = xpaths['table']
+        self.rows_xpath = xpaths['row']
+        self.next_page_xpath = xpaths['next_page']
         self.patterns = patterns
         self.maxCount = maxCount
+        self.cookies = task.get('cookies')
         self.content = None
+        self.headless = False   # True表示不显示浏览器窗口
 
     def get_content(self):
         return self.content
 
-    def parse(self, cookies=None):
+    def parse(self):
         # 如果有cookie字符串，处理为cookie格式
         cookie_dict = {}
-        if cookies:
-            cookie_list = cookies.split(';')
+        if self.cookies:
+            cookie_list = self.cookies.split(';')
             for cookie in cookie_list:
                 # 分割cookie并将其转换为字典形式
                 key, value = cookie.strip().split('=', 1)
                 cookie_dict[key] = value
 
-
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)  # Set headless=True to disable browser UI
+            browser = p.chromium.launch(headless=self.headless)
             page = browser.new_page(extra_http_headers={'User-Agent': get_random_user_agent()})
 
-            # 如果传入了cookie，设置cookies
             if cookie_dict:
                 print("设置cookies...", cookie_dict)
-                # # 通过 urlparse 从 URL 中提取域名
-                # parsed_url = urlparse(self.url)
-                # domain = parsed_url.netloc  # 提取域名部分
                 page.context.add_cookies([{
                     'name': key,
                     'value': value,
@@ -56,6 +58,31 @@ class HTMLParser:
                 const table = document.evaluate('{self.table_xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
                 if (table) table.scrollIntoView();
             """)
+
+            # 执行开始解析前的动作组操作
+            if self.before_action_group:
+                print("执行开始解析前的动作组操作...")
+                element = None  # 用于缓存上一次点击的元素
+                for action in self.before_action_group:
+                    action_type = action.get('actionType')
+                    target = action.get('target')
+                    if action_type == 'click':
+                        try:
+                            element = page.locator(f'xpath={target}')
+                            if element.is_visible() and not element.is_disabled():
+                                print(f"执行点击动作: {target}")
+                                element.click()
+                                time.sleep(random.uniform(1, 3))  # 等待动作执行完成
+                        except Exception as e:
+                            print(f"点击动作失败: {str(e)}")
+                    elif action_type == 'input':
+                        try:
+                            if element and element.is_visible() and not element.is_disabled():
+                                print(f"执行输入动作: {action.get('target')}")
+                                element.fill(action.get('target'))
+                                time.sleep(random.uniform(1, 3))  # 等待动作执行完成
+                        except Exception as e:
+                            print(f"输入动作失败: {str(e)}")
 
             all_results = []
 

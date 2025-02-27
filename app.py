@@ -351,9 +351,8 @@ def execute_task_parsing(task, max_count):
 
     # 根据数据格式选择解析器
     if task['dataFormat'] == 'html':
-        xpaths = task['xpaths']
-        parser = HTMLParser(task['url'], xpaths['table'], xpaths['row'], xpaths['next_page'], patterns, max_count)
-        table = parser.parse(task['cookies'])
+        parser = HTMLParser(task, max_count)
+        table = parser.parse()
     else:
         parser = ParserFactory.get_parser(task['dataFormat'])
         table = parser.parse(task['url'], task['parseType'], columns, patterns, task['table_pattern'], max_count)
@@ -436,4 +435,4 @@ def init_scheduler():
 if __name__ == '__main__':
     init_scheduler()
     # app.run(debug=True, port=5000) # 调试模式下会重复运行定时任务
-    app.run(debug=False, port=5000)
+    app.run(debug=False, port=5001)
