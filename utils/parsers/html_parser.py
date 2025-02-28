@@ -1,10 +1,14 @@
 import random
+import traceback
 from playwright.async_api import async_playwright
 from lxml import html
 from utils.common import get_random_user_agent
 from urllib.parse import urljoin
 import re
 import asyncio
+from utils.logger import setup_logger
+
+logger = setup_logger()
 
 from .base import BaseParser
 
@@ -20,13 +24,13 @@ class HTMLParser(BaseParser):
         self.headless = False  # True表示不显示浏览器窗口
         self.browser = None
 
-        # 提前编译正则表达式
+        # 提前编译正则表达式，使用 re.DOTALL 标志以匹配多行文本
         self.compiled_patterns = {}
         for field, pattern in self.patterns.items():
             if pattern.startswith("r'") and pattern.endswith("'"):
                 pattern = pattern[2:-1]
             try:
-                self.compiled_patterns[field] = re.compile(pattern)
+                self.compiled_patterns[field] = re.compile(pattern, re.DOTALL)
             except re.error as e:
                 print(f"正则表达式无效: {str(e)}")
 
@@ -46,7 +50,7 @@ class HTMLParser(BaseParser):
                 if action_type == 'click':
                     await self._perform_click_action(page, target)
                 elif action_type == 'input':
-                    await self._perform_input_action(page, element, target)
+                    await self._perform_input_action(page, target)
 
     async def _perform_click_action(self, page, target):
         try:
@@ -58,8 +62,9 @@ class HTMLParser(BaseParser):
         except Exception as e:
             print(f"点击动作失败: {str(e)}")
 
-    async def _perform_input_action(self, page, element, target):
+    async def _perform_input_action(self, page, target):
         try:
+            element = page.locator(f'xpath={target}')
             if element and await element.is_visible() and not await element.is_disabled():
                 print(f"执行输入动作: {target}")
                 await element.fill(target)
@@ -95,7 +100,7 @@ class HTMLParser(BaseParser):
             if await next_page.is_visible() and not await next_page.is_disabled():
                 print("点击下一页...")
                 await next_page.click()
-                await asyncio.sleep(random.uniform(3, 5))
+                await asyncio.sleep(random.uniform(1, 3))
                 await page.wait_for_selector(f'xpath={self.table_xpath}')
                 return True
             else:
@@ -104,6 +109,13 @@ class HTMLParser(BaseParser):
         except Exception as e:
             print(f"无法点击下一页: {str(e)}")
             return False
+
+    def get_full_url(self, url):
+        # 判断是否为完整 URL，如果不是则加上当前域名
+        if not url.startswith(('http://', 'https://')):
+            print("拼接完整URL...")
+            url = urljoin(self.url, url)
+        return url
 
     async def _process_children(self, subtask, row_html):
         all_child_results = []
@@ -114,10 +126,7 @@ class HTMLParser(BaseParser):
 
         child_url = link_elements[0].get('href')
         if child_url:
-            # 判断是否为完整 URL，如果不是则加上当前域名
-            if not child_url.startswith(('http://', 'https://')):
-                print("拼接完整URL...")
-                child_url = urljoin(self.url, child_url)
+            child_url = self.get_full_url(child_url)
 
         # 创建新的 context
         child_context = await self.browser.new_context(extra_http_headers={'User-Agent': get_random_user_agent()})
@@ -159,11 +168,10 @@ class HTMLParser(BaseParser):
                     'url': self.url,
                 } for key, value in cookie_dict.items()])
 
-            await page.goto(self.url)
-
             print("等待页面加载...")
-            await asyncio.sleep(3)
+            await page.goto(self.url, wait_until="domcontentloaded")
 
+            # await asyncio.sleep(3)
             print("滚动到表格底部...")
             await page.evaluate(f"""
                 const table = document.evaluate('{self.table_xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
@@ -203,6 +211,7 @@ class HTMLParser(BaseParser):
 
             for row in rows:
                 row_html = html.tostring(row, encoding='unicode')
+                row_html = row_html.replace('\n', '').strip()
                 print(f"当前行: {row_html[:100]}")
                 row_data = {}
 
@@ -230,7 +239,7 @@ class HTMLParser(BaseParser):
                                 if match.group(i):
                                     # 去除HTML标签
                                     clean_text = re.sub(r'<[^>]*>', '', match.group(i))
-                                    row_data[field] += clean_text
+                                    row_data[field] += clean_text.strip()
                                 else:
                                     row_data[field] = ""
                         else:
@@ -239,7 +248,7 @@ class HTMLParser(BaseParser):
                             if match.group(1):
                                 # 去除匹配结果中的 HTML 标签
                                 clean_text = re.sub(r'<[^>]*>', '', match.group(1))
-                                row_data[field] += clean_text
+                                row_data[field] += clean_text.strip()
 
                 if row_data:
                     data.append(row_data)
@@ -250,18 +259,27 @@ class HTMLParser(BaseParser):
                 if len(children) > 0:
                     try:
                         print("尝试获取子任务...")
+                        # 创建异步任务列表
+                        tasks = []
                         for subtask in children:
+                            t = self._process_children(subtask, row_html)
+                            tasks.append(t)
+
+                        # 并发执行所有子任务
+                        child_results_list = await asyncio.gather(*tasks)
+
+                        for i, subtask in enumerate(children):
                             field = subtask.get('title')
                             if field in row_data:
                                 field += "_children"
-                            child_results = await self._process_children(subtask, row_html)
-                            if child_results:
-                                data[-1][field] = child_results
+                            if child_results_list[i]:
+                                data[-1][field] = child_results_list[i]
                     except Exception as e:
                         print(f"子任务处理错误: {str(e)}")
 
             return data
 
         except Exception as e:
+            logger.error(f"解析错误: {str(e)}\n{traceback.format_exc()}")
             print(f"解析错误: {str(e)}")
             return data

@@ -37,7 +37,7 @@ class BaseParser(ABC):
             print(f"已加载URL: {url}")
 
     @abstractmethod
-    def parse(self, maxCount=None, context=None):
+    async def parse(self, maxCount=None, context=None):
         """
         输出: 解析表格
         """

@@ -245,7 +245,7 @@
                                 :data="currentTask.children"
                                 node-key="id"
                                 defualt-expand-all
-                                v-if="currentTask.children"
+                                v-if="currentTask.children && currentTask.children.length > 0"
                                 >
                                 <span class="custom-tree-node" slot-scope="{ node, data }">
                                 <span>{{ data.title }}</span>
@@ -259,7 +259,7 @@
                             <el-button icon="el-icon-plus" type="primary" @click="addSubtask(currentTask)">添加子任务</el-button>
                         </div>
                         <!-- 编辑子任务对话框 -->
-                        <el-dialog :visible.sync="editSubtaskDialogVisible" title="编辑子任务" width="60%" append-to-body>
+                        <el-dialog :visible.sync="editSubtaskDialogVisible" title="编辑子任务" width="80%" append-to-body>
                             <el-form label-width="80px">
                                 <el-form-item label="名称">
                                     <el-input v-model="subtask.title"></el-input>
@@ -613,8 +613,12 @@
             },
             saveEditedSubtask() {
                 const newSubtask = JSON.parse(JSON.stringify(this.subtask));
+                // 调用验证函数
+                if (!this.validateSubtask(newSubtask)) {
+                    return;
+                }
                 if (this.subtask.id) {
-                    foundTask = this.findTaskById(this.currentTask.children, this.subtask.id);
+                    const foundTask = this.findTaskById(this.currentTask.children, this.subtask.id);
                     if (!foundTask) {
                         this.$message.warning('未找到指定的子任务');
                         return;
@@ -628,6 +632,38 @@
                 this.$message.success("子任务已保存")
                 console.log("保存成功", this.currentTask.children);
                 this.editSubtaskDialogVisible = false;
+            },
+            validateSubtask(subtask) {
+                const showWarning = (msg) => (this.$message.warning(msg), false);
+                if (!subtask.title.trim()) return showWarning('请输入子任务名称');
+                const isValidUrl = /^https?:\/\/.+/i.test(subtask.url) || /file:\/\/.+/i.test(subtask.url);
+                if (!subtask.url.trim() ||!isValidUrl) return showWarning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
+                if (!subtask.dataFormat) return showWarning('请选择数据格式');
+                if (subtask.dataFormat!== 'html' && subtask.table_pattern &&!subtask.table_pattern.trim()) {
+                    try { new RegExp(subtask.table_pattern); } catch (e) { return showWarning('表格正则匹配不合法，请先在https://regex101.com/ 验证是否匹配'); }
+                }
+                if (subtask.scheduleType === 'fixed' && (!subtask.days ||!subtask.execTime)) return showWarning('请填写定时任务的天数和执行时间');
+                if (subtask.scheduleType === 'interval' &&!subtask.interval) return showWarning('请填写间隔时间');
+                if (subtask.dataFormat === 'html') {
+                    const xpathRegex = /^(\/\/?|@|[\w-]+|\[.*?\]|\(.*?\)|\*|@[\w-]+|\.\.|\.)/;
+                    const validateXPath = (xpath, msg) => (!xpath.trim() ||!xpathRegex.test(xpath))? showWarning(msg) : true;
+                    // 仅验证表格 XPath 是否合法
+                    if (!validateXPath(subtask.xpaths.table, '请输入合法表格XPath')) return false;
+                    // 行和下一页按钮的 XPath 可以为空
+                    if (subtask.xpaths.row.trim() &&!validateXPath(subtask.xpaths.row, '请输入合法行XPath')) return false;
+                    if (subtask.xpaths.next_page.trim() &&!validateXPath(subtask.xpaths.next_page, '请输入合法下一页按钮XPath')) return false;
+                    ['table', 'row', 'next_page'].forEach(key => subtask.xpaths[key] = subtask.xpaths[key].trim());
+                }
+                if (!subtask.parseValues ||!subtask.parseValues.length) return showWarning('请添加解析值');
+                if (subtask.parseValues.some(item =>!item.key.trim())) return showWarning('解析字段不能为空');
+                if (subtask.otherValues.some(item =>!item.source.trim() ||!item.target.trim())) return showWarning('源值和目标值不能为空');
+                if (subtask.parseType === 1) {
+                    for (let item of subtask.parseValues) {
+                        try { new RegExp(item.pattern); } catch (e) { return showWarning(`${item.key}的正则表达式不合法，请先在https://regex101.com/ 验证是否匹配`); }
+                    }
+                }
+                if (!subtask.maxCount) return showWarning('请填写最多爬取数据数量');
+                return true;
             },
             async remove(node, data) {
                 try {
@@ -836,7 +872,10 @@
                             return Object.keys(row).reduce((newRow, key) => {
                                 const value = row[key];
                                 if (Array.isArray(value)) {
-                                    newRow[key] = JSON.stringify(value[0]); // 只取第一个元素
+                                    // 先将第一个元素转换为 JSON 字符串
+                                    const jsonStr = JSON.stringify(value[0]);
+                                    // 再截取前 100 个字符
+                                    newRow[key] = jsonStr.substring(0, 100) + '...';
                                 } else {
                                     newRow[key] = value;
                                 }
