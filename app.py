@@ -8,8 +8,9 @@ from datetime import datetime
 import os
 import shortuuid
 from utils.parser_factory import ParserFactory
-from utils.parsers.html_parser import HTMLParser
 from utils.regex_matcher import match_one, match_all
+from utils.logger import setup_logger
+import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # https://regex101.com/
@@ -23,86 +24,107 @@ tasks_table = db.table('tasks')
 
 # 初始化调度器
 scheduler = BackgroundScheduler()
+# 初始化日志
+logger = setup_logger()
+# 自定义日志记录器，添加 API 信息
+class ApiInfoFilter(logging.Filter):
+    def filter(self, record):
+        if request:
+            record.api_info = request.path
+        else:
+            record.api_info = "N/A"
+        return True
+
+logger.addFilter(ApiInfoFilter())
 
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
-    tasks = tasks_table.all()
-    return jsonify(tasks)
+    try:
+        tasks = tasks_table.all()
+        logger.info(f"成功获取所有任务，数量：{len(tasks)}")
+        return jsonify(tasks)
+    except Exception as e:
+        logger.error(f"获取所有任务时出错: {e}")
+        return jsonify({"error": "获取任务时出错"}), 500
 
 
 @app.route('/api/tasks/paginated', methods=['GET'])
 def get_tasks_paginated():
     # 获取分页、搜索、排序和筛选参数
+    logger.info(f"分页请求参数: {request.args}")
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('perPage', 10))
+        search = request.args.get('searchQuery', '').lower()
+        print ("get_tasks_paginated 1")
 
-    print ("get_tasks_paginated")
-    # 解析参数
-    print(request.args)
+        sort = json.loads(request.args.get('sort', '[]'))   # 是一个对象sort= [{ sortField: 'title', sortOrder: 'asc' }]
+        print ("get_tasks_paginated 1111")
 
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('perPage', 10))
-    search = request.args.get('searchQuery', '').lower()
-    print ("get_tasks_paginated 1")
+        filters = json.loads(request.args.get('filters', '{}'))    # 是一个对象filters = { scheduleType: ['fixed'] }
+        print ("get_tasks_paginated2")
 
-    sort = json.loads(request.args.get('sort', '[]'))   # 是一个对象sort= [{ sortField: 'title', sortOrder: 'asc' }]
-    print ("get_tasks_paginated 1111")
+        # 调试输出
+        print(f"Page: {page}, Per Page: {per_page}, Search: {search}, Sort: {sort}, Filters: {filters}")
 
-    filters = json.loads(request.args.get('filters', '{}'))    # 是一个对象filters = { scheduleType: ['fixed'] }
-    print ("get_tasks_paginated2")
+        # 获取所有任务
+        tasks = tasks_table.all()
 
-    # 调试输出
-    print(f"Page: {page}, Per Page: {per_page}, Search: {search}, Sort: {sort}, Filters: {filters}")
+        # 搜索过滤
+        if search:
+            tasks = [t for t in tasks if search in t.get('title', '').lower() or search in t.get('url', '').lower()]
 
-    # 获取所有任务
-    tasks = tasks_table.all()
+        # 筛选过滤, filters = { scheduleType: ['fixed'], ... }
+        if filters:
+            for field, values in filters.items():
+                if values:
+                    tasks = [t for t in tasks if t.get(field) in values]
 
-    # 搜索过滤
-    if search:
-        tasks = [t for t in tasks if search in t.get('title', '').lower() or search in t.get('url', '').lower()]
-
-    # 筛选过滤, filters = { scheduleType: ['fixed'], ... }
-    if filters:
-        for field, values in filters.items():
-            if values:
-                tasks = [t for t in tasks if t.get(field) in values]
-
-    # 排序处理
-    if sort:
-        for cond in reversed(sort):
-            field, order = cond.get("sortField"), cond.get("sortOrder", "asc")
-            placeholder = ''
-            tasks.sort(key=lambda t: placeholder if t.get(field) is None else t.get(field), reverse=(order == "desc"))
+        # 排序处理
+        if sort:
+            for cond in reversed(sort):
+                field, order = cond.get("sortField"), cond.get("sortOrder", "asc")
+                placeholder = ''
+                tasks.sort(key=lambda t: placeholder if t.get(field) is None else t.get(field), reverse=(order == "desc"))
 
 
-    # 分页处理
-    start, end, total = (page - 1) * per_page, (page - 1) * per_page + per_page, len(tasks)
-    paginated_tasks = tasks[start:end]
+        # 分页处理
+        start, end, total = (page - 1) * per_page, (page - 1) * per_page + per_page, len(tasks)
+        paginated_tasks = tasks[start:end]
 
-    return jsonify({
-        'page': page,
-        'perPage': per_page,
-        'total': total,
-        'data': paginated_tasks
-    })
-
-
-
+        return jsonify({
+            'page': page,
+            'perPage': per_page,
+            'total': total,
+            'data': paginated_tasks
+        })
+    except Exception as e:
+        logger.error(f"获取分页任务时出错: {e}")
+        return jsonify({"error": "获取任务时出错"}), 500
 
 @app.route('/api/tasks', methods=['POST'])
 def create_task():
-    data = request.json
-    task_id = str(shortuuid.uuid())
-    data['id'] = task_id
-    tasks_table.insert(data)
-    if data.get('isActive', True):
-        schedule_task(data)
-    return jsonify({'id': task_id}), 201
+    try:
+        data = request.json
+        task_id = str(shortuuid.uuid())
+        data['id'] = task_id
+        tasks_table.insert(data)
+        if data.get('isActive', True):
+            schedule_task(data)
+        logger.info(f"创建任务成功, ID: {task_id}")
+        return jsonify({'id': task_id}), 201
+    except Exception as e:
+        logger.error(f"创建任务时出错: {e}")
+        return jsonify({"error": "创建任务时出错"}), 500
 
 @app.route('/api/tasks/<string:task_id>', methods=['GET'])
 def get_task(task_id):
     Task = Query()
     task = tasks_table.get(Task.id == task_id)
     if task is None:
+        logger.warning(f"任务 {task_id} 未找到")
         return jsonify({'error': 'Task not found'}), 404
+    logger.info(f"获取任务成功, ID: {task_id}")
     return jsonify(task)
 
 @app.route('/api/tasks/<string:task_id>', methods=['PUT'])
@@ -115,8 +137,10 @@ def update_task(task_id):
             scheduler.remove_job(task_id)   # 先删除原有任务
         if data.get('isActive', False) == True:
             schedule_task(data)
+        logger.info(f"更新任务成功, ID: {task_id}")
         return jsonify({'success': True})
     except Exception as e:
+        logger.error(f"更新任务时出错: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/tasks/<string:task_id>', methods=['DELETE'])
@@ -126,8 +150,10 @@ def delete_task(task_id):
         tasks_table.remove(Task.id == task_id)
         if scheduler.get_job(task_id):
             scheduler.remove_job(task_id)
+        logger.info(f"删除任务成功, ID: {task_id}")
         return jsonify({'success': True})
     except Exception as e:
+        logger.error(f"删除任务时出错: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -141,24 +167,24 @@ def delete_tasks():
         for task_id in ids:
             if scheduler.get_job(task_id):
                 scheduler.remove_job(task_id)
+        logger.info(f"批量删除任务成功, IDs: {ids}")
         return jsonify({'success': True})
     except Exception as e:
+        logger.error(f"批量删除任务失败: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/tasks/<string:task_id>/status', methods=['PUT'])
 def update_task_status(task_id):
-    data = request.json
-    isActive = data.get('isActive', False)
-    update_task_status_func(task_id, isActive)
-
-    # 打印当前所有运行的任务
-    print("当前运行的任务:")
-    for job in scheduler.get_jobs():
-        print(f"任务ID: {job.id}")
-        # 打印任务详情
-        print(job)
-    return jsonify({'success': True})
+    try:
+        data = request.json
+        isActive = data.get('isActive', False)
+        update_task_status_func(task_id, isActive)
+        logger.info(f"更新任务状态成功, ID: {task_id}, 运行中: {isActive}")
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"更新任务状态失败: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 def update_task_status_func(task_id, isActive):
     Task = Query()
@@ -175,31 +201,35 @@ def update_task_status_func(task_id, isActive):
             if scheduler.get_job(task_id):
                 scheduler.remove_job(task_id)
 
-@app.route('/api/tasks/running', methods=['GET'])
-def get_running_tasks():
-    jobs = scheduler.get_jobs()
-    running_tasks = [{'id': job.id, 'next_run_time': job.next_run_time } for job in jobs]
-    return jsonify({'success': True, 'running_tasks': running_tasks})
+# 获取运行中的任务
+# def get_running_tasks():
+#     jobs = scheduler.get_jobs()
+#     running_tasks = [{'id': job.id, 'next_run_time': job.next_run_time } for job in jobs]
+#     return jsonify({'success': True, 'running_tasks': running_tasks})
 
 @app.route('/api/tasks/<string:task_id>/parse', methods=['POST'])
-def parse_task(task_id):    # 预览
+async def parse_task(task_id):    # 预览
     Task = Query()
     task = tasks_table.get(Task.id == task_id)
     if not task:
+        logger.warning(f"任务 {task_id} 未找到")
         return jsonify({'success': False, 'error': '任务不存在'}), 404
 
     max_count = min(task['maxCount'], 20)  # 最大返回20条数据
     try:
-        table = execute_task_parsing(task, max_count)
+        table = await execute_task_parsing(task, max_count)
+        logger.info(f"预览任务解析成功, ID: {task_id}")
         return jsonify({'success': True, 'table': table})
     except Exception as e:
+        logger.error(f"预览任务解析失败: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/tasks/<string:task_id>/run', methods=['POST'])
-def run_task(task_id):
+async def run_task(task_id):
     Task = Query()
     task = tasks_table.get(Task.id == task_id)
     if not task:
+        logger.warning(f"任务 {task_id} 未找到")
         return jsonify({'success': False, 'error': '任务不存在'}), 404
 
     print(f'===========正在运行任务: {task_id}============')
@@ -208,8 +238,10 @@ def run_task(task_id):
         # 找到根目录/script/{id}.py
         script_path = os.path.join('script', f'{task_id}.py')
         if not os.path.exists(script_path):
+            logger.warning(f"脚本 {script_path} 未找到")
             return jsonify({'success': False, 'error': '脚本文件不存在'}), 404
         os.system(f'python {script_path}')  # 运行脚本
+        logger.info(f"任务 {task_id} 运行成功（专家模式）")
         return jsonify({'success': True, 'message': '任务已成功运行'})
 
     # 普通模式(task['crawlMode'] == 'general')
@@ -218,7 +250,7 @@ def run_task(task_id):
 
     max_count = task['maxCount']  # 获取最大数据量
     try:
-        result = execute_task_parsing(task, max_count)
+        result = await execute_task_parsing(task, max_count)
 
         # 保存结果
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -235,6 +267,7 @@ def run_task(task_id):
         Task = Query()
         tasks_table.update({'lastRunTime': current_time}, Task.id == task_id)
 
+        logger.info(f"任务 {task_id} 运行成功")
         return jsonify({
             'success': True,
             'task': {
@@ -244,6 +277,7 @@ def run_task(task_id):
             }
         })
     except Exception as e:
+        logger.error(f"任务 {task_id} 运行失败: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 #批量启动
@@ -256,6 +290,7 @@ def batch_start_tasks():
             update_task_status_func(task_id, True)
         return jsonify({'success': True})
     except Exception as e:
+        logger.error(f"批量启动任务失败: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 #批量停止
@@ -268,6 +303,7 @@ def batch_stop_tasks():
             update_task_status_func(task_id, False)
         return jsonify({'success': True})
     except Exception as e:
+        logger.error(f"批量停止任务失败: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # 批量导出
@@ -277,7 +313,8 @@ def batch_export_tasks():
         data = request.json
         task_ids = data.get('taskIds', [])
         if not task_ids:
-            return jsonify({"error": "No task IDs provided"}), 400
+            logger.warning(f"未提供任务ID")
+            return jsonify({'success': False, 'error': 'No task IDs provided'}), 400
 
         Task = Query()
         tasks = tasks_table.search(Task.id.one_of(task_ids))
@@ -296,32 +333,13 @@ def import_tasks():
         if not isinstance(data, list):
             return jsonify({"error": "Invalid JSON data format, must be list"}), 400
         # 定义一个样本任务，可根据实际情况调整
-        sample_task = {
-            "cookies": "",
-            "crawlMode": "general",
-            "dataFormat": "txt",
-            "days": 1,
-            "execTime": "00:00",
-            "id": "",
-            "interval": 1,
-            "isActive": False,
-            "lastRunTime": "",
-            "maxCount": 10,
-            "next_run_time": None,
-            "otherValues": [],
-            "parseType": 0,
-            "parseValues": [],
-            "schedule": "00 00 */1 * *",
-            "scheduleType": "fixed",
-            "table_pattern": "",
-            "title": "",
-            "url": "",
-            "xpaths": {
-                "next_page": "",
-                "row": "",
-                "table": ""
-            }
-        }
+        sample_task = {"cookies": "", "crawlMode": "general", "dataFormat": "html", "days": 1, "execTime": "00:00",
+                       "id": "", "interval": 1, "isActive": False, "lastRunTime": "", "maxCount": 1,
+                       "next_run_time": None, "title": "", "url": "", "scheduleType": "random",
+                       "table_pattern": "", "schedule": "", "tableType": "0",
+                       "xpaths": {"next_page": "", "row": "", "table": ""},
+                       "parseValues": [], "otherValues": [], "parseType": 1,
+                       "before_action_group": [], "children": []}
 
         for task in data:
             task_id = task.get('id')
@@ -339,25 +357,16 @@ def import_tasks():
 
         return jsonify({"success": True, "message": "Tasks imported successfully"}), 200
     except Exception as e:
+        logger.error(f"导入任务失败: {e}")
         return jsonify({"error": str(e)}), 500
 
-
-
-def execute_task_parsing(task, max_count):
-    parse_rules = task['parseValues']
-    other_rules = task['otherValues']
-    columns = {rule['key']: rule['index'] for rule in parse_rules}
-    patterns = {rule['key']: rule['pattern'] for rule in parse_rules}
-
-    # 根据数据格式选择解析器
-    if task['dataFormat'] == 'html':
-        parser = HTMLParser(task, max_count)
-        table = parser.parse()
-    else:
-        parser = ParserFactory.get_parser(task['dataFormat'])
-        table = parser.parse(task['url'], task['parseType'], columns, patterns, task['table_pattern'], max_count)
+async def execute_task_parsing(task, max_count):
+    # 根据数据格式初始化解析器
+    parser = ParserFactory.get_parser(task)
+    table = await parser.parse(max_count, context=None)
 
     # 添加其他值
+    other_rules = task['otherValues']
     result = addOtherValues(table, other_rules, parser.get_content())
     return result
 

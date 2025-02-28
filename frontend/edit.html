@@ -1,10 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh">
-<!-- todo: 添加自定义脚本选项（即不使用解析值固定值，自定义脚本） 添加一个字段mode？ -->
-<!-- todo: 任务配置支持批量json导入导出-->
-<!-- todo: electron菜单栏自定义（json导入导出， XPath，正则获取工具）-->
-<!-- todo：自动保存任务 -->
-<!-- todo：attack_time为时间戳 long 10位 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -245,56 +240,155 @@
                         <el-button type="primary" icon="el-icon-plus" @click="addOtherValues(currentTask)">添加其他值</el-button>
                     </el-form-item>
                     <el-form-item label="子任务" style="margin-bottom: 60px;">
-                        <div class="subtasks">
-                            <div class="block">
-                                <el-tree
-                                    :data="data"
-                                    show-checkbox
-                                    node-key="id"
-                                    default-expand-all
-                                    :expand-on-click-node="false">
-                                    <span class="custom-tree-node" slot-scope="{ node, data }">
-                                    <span>{{ node.label }}</span>
-                                    <span>
-                                        <el-button v-if="!data.isRoot" type="text" size="mini" @click="() => editSubtask(data)">Edit</el-button>
-                                        <el-button v-if="!data.isRoot" type="text" size="mini" @click="() => remove(node, data)">Delete</el-button>
-                                        <el-button type="text" size="mini" @click="() => append(data)">Append</el-button>
-                                    </span>
-                                    </span>
-                                </el-tree>
-                            </div>
+                        <div class="children">
+                            <el-tree
+                                :data="currentTask.children"
+                                node-key="id"
+                                defualt-expand-all
+                                v-if="currentTask.children"
+                                >
+                                <span class="custom-tree-node" slot-scope="{ node, data }">
+                                <span>{{ data.title }}</span>
+                                <span>
+                                    <el-button type="text" style="color: #ff9900" @click="() => editSubtask(data)" icon="el-icon-edit"></el-button>
+                                    <el-button type="text" style="color: #ff0000" @click="() => remove(node, data)" icon="el-icon-delete"></el-button>
+                                    <el-button type="text" style="color: #409EFF" @click="() => append(data)" icon="el-icon-plus"></el-button>
+                                </span>
+                                </span>
+                            </el-tree>
+                            <el-button icon="el-icon-plus" type="primary" @click="addSubtask(currentTask)">添加子任务</el-button>
                         </div>
                         <!-- 编辑子任务对话框 -->
                         <el-dialog :visible.sync="editSubtaskDialogVisible" title="编辑子任务" width="60%" append-to-body>
                             <el-form label-width="80px">
-                                <el-form-item label="子任务名称">
+                                <el-form-item label="名称">
                                     <el-input v-model="subtask.title"></el-input>
                                 </el-form-item>
                                 <el-form-item label="链接XPath">
-                                    <el-input v-model="subtask.linkXPath"></el-input>
+                                    <el-input v-model="subtask.linkXPath" placeholder="相对于父节点的行内链接的XPath"></el-input>
                                 </el-form-item>
-                                <el-form-item label="开始动作组">
-                                    <div v-for="(item, index) in subtask.before_action_group" :key="index" class="dynamic-row">
-                                        <el-row :gutter="10" type="flex" align="middle">
-                                            <el-col :span="7">
-                                                <el-input v-model="item.source" placeholder="请输入动作名称"></el-input>
-                                            </el-col>
-                                            <el-col :span="4">
-                                                <el-select v-model="item.actionType" placeholder="动作类型">
-                                                    <el-option label="点击" value="click"></el-option>
-                                                    <el-option label="输入" value="input"></el-option>
+                                <el-form label-width="80px">
+                                    <el-row :gutter="20">
+                                        <el-col :span="6">
+                                            <el-form-item label="数据格式">
+                                                <el-select v-model="subtask.dataFormat" placeholder="请选择数据格式">
+                                                    <el-option label="文本类（TXT）" value="txt"></el-option>
+                                                    <el-option label="表格类（CSV）" value="csv"></el-option>
+                                                    <el-option label="网页类（HTML）" value="html"></el-option>
                                                 </el-select>
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :span="6">
+                                            <el-form-item label="解析类型">
+                                                <el-select v-model="subtask.parseType" placeholder="表格解析类型">
+                                                    <el-option label="列索引（从0开始）" :value="0" v-if="subtask.dataFormat !== 'html'"></el-option>
+                                                    <el-option label="正则匹配" :value="1"></el-option>
+                                                </el-select>
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            <el-form-item label="最大爬取数" label-width="100px">
+                                                <el-input-number v-model="subtask.maxCount" :min="1" controls-position="right" placeholder="不少于1" style="margin: 0 4px;"></el-input-number>
+                                            </el-form-item>
+                                        </el-col>
+                                    </el-row>
+                                </el-form>
+                                <template  v-if="subtask.dataFormat === 'html'">
+                                    <el-form-item label="动作组">
+                                        <div v-for="(item, index) in subtask.before_action_group" :key="index" class="dynamic-row">
+                                            <el-row :gutter="10" type="flex" align="middle">
+                                                <el-col :span="7">
+                                                    <el-input v-model="item.source" placeholder="请输入动作名称"></el-input>
+                                                </el-col>
+                                                <el-col :span="4">
+                                                    <el-select v-model="item.actionType" placeholder="动作类型">
+                                                        <el-option label="点击" value="click"></el-option>
+                                                        <el-option label="输入" value="input"></el-option>
+                                                    </el-select>
+                                                </el-col>
+                                                <el-col :span="11">
+                                                    <el-input v-if="item.actionType == 'click'" v-model="item.target" placeholder="请输入点击元素的XPath"></el-input>
+                                                    <el-input v-else-if="item.actionType == 'input'" v-model="item.target" placeholder="请输入内容"></el-input>
+                                                </el-col>
+                                                <el-col :span="2">
+                                                    <el-button type="danger" icon="el-icon-delete" @click="removeActionType(index, subtask)"></el-button>
+                                                </el-col>
+                                            </el-row>
+                                        </div>
+                                        <el-button type="primary" icon="el-icon-plus" @click="addActionType(subtask)">添加开始动作</el-button>
+                                    </el-form-item>
+                                    <el-form-item label="XPath">
+                                        <el-row :gutter="10">
+                                            <el-col :span="7">
+                                                <el-input v-model="subtask.xpaths.table" placeholder="表格XPath，如: //div[@role='table']"></el-input>
                                             </el-col>
-                                            <el-col :span="11">
-                                                <el-input v-if="item.actionType == 'click'" v-model="item.target" placeholder="请输入点击元素的XPath"></el-input>
-                                                <el-input v-else-if="item.actionType == 'input'" v-model="item.target" placeholder="请输入内容"></el-input>
+                                            <el-col :span="7">
+                                                <el-input v-model="subtask.xpaths.row" placeholder="行XPath（相对于表格）"></el-input>
+                                            </el-col>
+                                            <el-col :span="7">
+                                                <el-input v-model="subtask.xpaths.next_page" placeholder="下一页按钮XPath"></el-input>
+                                            </el-col>
+                                        </el-row>
+                                    </el-form-item>
+                                </template>
+                                <el-form-item label="表格匹配" v-if="subtask.dataFormat === 'txt'">
+                                    <el-row :gutter="10">
+                                        <el-col :span="12">
+                                            <el-input v-model="subtask.table_pattern" placeholder="表格的正则匹配，从每行开头匹配，如: (\S+)\s+#\s+domain - (.*)"></el-input>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                                <el-form-item label="列解析">
+                                    <div v-for="(item, index) in subtask.parseValues" :key="index" class="dynamic-row">
+                                        <el-row :gutter="10" type="flex" align="middle">
+                                            <el-col :span="8">
+                                                <el-input v-model="item.key" placeholder="解析字段"></el-input>
+                                            </el-col>
+                                            <el-col :span="8">
+                                                <template v-if ="subtask.parseType === 0">
+                                                    <span>第</span>
+                                                    <el-input-number v-model="item.index" :min="0" controls-position="right" placeholder="列索引"></el-input-number>
+                                                    <span>列</span>
+                                                </template>
+                                                <el-input v-else v-model="item.pattern" placeholder="正则表达式，如：(简单|中等|困难)"></el-input>
                                             </el-col>
                                             <el-col :span="2">
-                                                <el-button type="danger" icon="el-icon-delete" @click="removeActionType(index, subtask)"></el-button>
+                                                <el-button type="danger" icon="el-icon-delete" @click="removeParseValue(index, subtask)"></el-button>
                                             </el-col>
                                         </el-row>
                                     </div>
-                                    <el-button type="primary" icon="el-icon-plus" @click="addActionType(subtask)">添加动作</el-button>
+                                    <el-button type="primary" icon="el-icon-plus" @click="addParseValue(subtask)">添加解析值</el-button>
+                                </el-form-item>
+                                <el-form-item label="其他值">
+                                    <div v-for="(item, index) in subtask.otherValues" :key="index" class="dynamic-row">
+                                        <el-row :gutter="10" type="flex" align="middle">
+                                            <el-col :span="7">
+                                                <el-input v-model="item.source" placeholder="请输入源值"></el-input>
+                                            </el-col>
+                                            <el-col :span="4">
+                                                <el-select v-model="item.valueType" placeholder="取值类型">
+                                                    <el-option label="固定值" value="fixed"></el-option>
+                                                    <el-option label="正则匹配" value="regex"></el-option>
+                                                    <el-option label="特殊值" value="special"></el-option>
+                                                </el-select>
+                                            </el-col>
+                                            <el-col :span="11">
+                                                <el-input v-if="item.valueType != 'special'" v-model="item.target" placeholder="请输入固定值或正则表达式"></el-input>
+                                                <el-select v-else v-model="item.target" placeholder="请选择特殊值">
+                                                    <el-option
+                                                            v-for="option in specialValues"
+                                                            :key="option.value"
+                                                            :label="option.label"
+                                                            :value="option.value"
+                                                    ></el-option>
+                                                </el-select>
+                                            </el-col>
+                                            <el-col :span="2">
+                                                <el-button type="danger" icon="el-icon-delete" @click="removeOtherValues(index, subtask)"></el-button>
+                                            </el-col>
+                                        </el-row>
+                                    </div>
+                                    <el-button type="primary" icon="el-icon-plus" @click="addOtherValues(subtask)">添加其他值</el-button>
                                 </el-form-item>
                             </el-form>
                             <div slot="footer" class="dialog-footer">
@@ -371,25 +465,14 @@
                 maxCount: 10,    // 最多爬取数据数量,
                 crawlMode: 'general',
                 cookies: '',
-                subtasks: [],
+                children: [],
             },
             specialValues: [
                 { value: 'attack_time', label: '爬取时间' },
                 { value: 'attack_timestamp', label: '爬取时间（10位long时间戳）' },
             ],
-            data: [
-                {
-                    id: 1,
-                    label: '根任务',
-                    children: [],
-                    isRoot: true,
-                }
-            ],
-            subtask: {
-                title: '',
-                linkXPath: '',
-                before_action_group: [],
-            },
+            subtask: {},
+            currentEditParent: null,
             editSubtaskDialogVisible:false,
             previewDialogVisible: false,
             parsedTable: [],
@@ -408,24 +491,57 @@
             }
         },
         methods: {
-            append(data) {
-                const newNode = {
-                    isRoot: false,
+            addSubtask(parentTask) {
+                const newSubtask = {
                     id: Date.now(),
-                    title: '',
-                    linkXPath: '',
-                    before_action_group: [],
                     children: [],
-                    subtasks: []
+                    title: `子任务${parentTask.children ? parentTask.children.length + 1 : 1}`,
+                    linkXPath: '',
+                    dataFormat: 'txt',
+                    parseType: 1, // 0: 列解析, 1:正则匹配
+                    table_pattern: '',
+                    before_action_group: [],
+                    parseValues: [],
+                    otherValues: [],
+                    maxCount: 10,
+                    xpaths: {
+                        table: '',  // 表格XPath
+                        row: '',    // 行XPath
+                        next_page: '' // 下一页按钮XPath
+                    },
+                };
+                if (!parentTask.children) {
+                    parentTask.children = [];
+                }
+                parentTask.children.push(newSubtask);
+                console.log("添加子任务：", parentTask.children)
+            },
+            append(node) {
+                const newNode = {
+                    id: Date.now(),
+                    children: [],
+                    title: '子任务',
+                    linkXPath: '',
+                    dataFormat: 'txt',
+                    parseType: 1, // 0: 列解析, 1:正则匹配
+                    table_pattern: '',
+                    before_action_group: [],
+                    parseValues: [],
+                    otherValues: [],
+                    maxCount: 10,
+                    xpaths: {
+                        table: '',  // 表格XPath
+                        row: '',    // 行XPath
+                        next_page: '' // 下一页按钮XPath
+                    },
                 };
                 // 获取当前节点的层级
-                const level = this.getLevel(data);
+                //const level = this.getLevel(data);
                 // 获取当前层级下的并行任务数量
-                const parallelTaskCount = this.getParallelTaskCount(data);
-                newNode.label = `子任务${level}-${parallelTaskCount + 1}`;
+                //const parallelTaskCount = this.getParallelTaskCount(data);
 
-                if (data.children) {
-                    data.children.push(newNode);
+                if (node.children) {
+                    node.children.push(newNode);
                 }
             },
             getLevel(node) {
@@ -440,7 +556,7 @@
             getParallelTaskCount(node) {
                 return node.children.filter(child => child!== node).length;
             },
-            findParent(node) {
+            findParent(node) {  // 查找指定节点的父节点
                 const find = (parentNode) => {
                     if (parentNode.children) {
                         for (const child of parentNode.children) {
@@ -455,66 +571,90 @@
                     }
                     return null;
                 };
-
-                for (const root of this.data) {
+                // 遍历当前任务的所有根节点，递归查找指定节点的父节点
+                for (const root of this.currentTask.children) {
                     const result = find(root);
                     if (result) {
                         return result;
                     }
                 }
-
                 return null;
             },
-            editSubtask(task) {
-                if (task) {
-                    this.subtask = JSON.parse(JSON.stringify(task));
-                    this.currentEditParent = this.findParent(task);
-                } else {
-                    this.subtask = {
-                        title: '',
-                        linkXPath: '',
-                        before_action_group: [],
-                        subtasks: []
-                    };
-                    this.currentEditParent = this.data.find(item => item.isRoot);
+            findTaskById(children, id) {
+                for (let i = 0; i < children.length; i++) {
+                    if (children[i].id === id) {
+                        return children[i];
+                    }
+                    if (children[i].children) {
+                        const result = this.findTaskById(children[i].children, id);
+                        if (result) {
+                            return result;
+                        }
+                    }
                 }
+                return null;
+            },
+            editSubtask(data) {
+                if (data) {
+                    const foundTask = this.findTaskById(this.currentTask.children, data.id);
+                    if (foundTask) {
+                        console.log("子任务找到，加载子任务...", foundTask);
+                        this.subtask = JSON.parse(JSON.stringify(foundTask));
+                        this.editSubtaskDialogVisible = true;
+                    } else {
+                        this.$message.warning('未找到指定的子任务');
+                    }
+                } else {
+                    this.$message.warning('请选择一个子任务');
+                    return;
+                }
+                console.log(this.subtask);
                 this.editSubtaskDialogVisible = true;
             },
             saveEditedSubtask() {
                 const newSubtask = JSON.parse(JSON.stringify(this.subtask));
                 if (this.subtask.id) {
-                    const index = this.currentEditParent.children.findIndex(item => item.id === this.subtask.id);
-                    if (index > -1) {
-                        this.currentEditParent.children.splice(index, 1, newSubtask);
+                    foundTask = this.findTaskById(this.currentTask.children, this.subtask.id);
+                    if (!foundTask) {
+                        this.$message.warning('未找到指定的子任务');
+                        return;
                     }
+                    Object.assign(foundTask, newSubtask);   // 引用赋值，直接修改currentTask.children
+                    console.log("子任务找到，更新子任务...", foundTask);
                 } else {
                     newSubtask.id = Date.now();
                     this.currentEditParent.children.push(newSubtask);
                 }
+                this.$message.success("子任务已保存")
+                console.log("保存成功", this.currentTask.children);
                 this.editSubtaskDialogVisible = false;
             },
-            remove(node, data) {
-                if (!data.isRoot) {
+            async remove(node, data) {
+                try {
+                    await this.$confirm('确认删除该子任务吗？', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    })
+                } catch (error) { return;}
+
+                // 检查是否为根节点
+                const isRoot = this.currentTask.children.some(item => item.id === data.id);
+                if (isRoot) {
+                    // 如果是根节点，直接从 currentTask.children 中移除
+                    const index = this.currentTask.children.findIndex(item => item.id === data.id);
+                    if (index > -1) {
+                        this.currentTask.children.splice(index, 1);
+                    }
+                } else {
+                    // 如果是子节点，找到父节点并从父节点的 children 中移除
                     const parent = this.findParent(data);
                     if (parent) {
-                        const index = parent.children.indexOf(data);
+                        const index = parent.children.findIndex(item => item.id === data.id);
                         if (index > -1) {
                             parent.children.splice(index, 1);
                         }
                     }
-
-                    // const removeFromSubtasks = (subtaskArray) => {
-                    //     subtaskArray.forEach((subtask, subIndex) => {
-                    //         if (subtask.id === data.id) {
-                    //             subtaskArray.splice(subIndex, 1);
-                    //         } else if (subtask.subtasks && subtask.subtasks.length > 0) {
-                    //             removeFromSubtasks(subtask.subtasks);
-                    //         }
-                    //     });
-                    // };
-                    // removeFromSubtasks(this.currentTask.subtasks);
-                } else {
-                    this.$message.warning('根任务不能删除');
                 }
             },
             async checkScriptFile() {
@@ -691,6 +831,18 @@
                     const response = await window.api.parseTask(this.currentTask.id);
                     if (response.success) {
                         this.parsedTable = response.table;
+                        // 处理列表数据，将其转换为字符串
+                        this.parsedTable = this.parsedTable.map(row => {
+                            return Object.keys(row).reduce((newRow, key) => {
+                                const value = row[key];
+                                if (Array.isArray(value)) {
+                                    newRow[key] = JSON.stringify(value[0]); // 只取第一个元素
+                                } else {
+                                    newRow[key] = value;
+                                }
+                                return newRow;
+                            }, {});
+                        });
                         // 打印前5行，检查数据格式
                         console.log(this.parsedTable.slice(0, 5));
 
@@ -730,10 +882,14 @@
             },
             async saveTask() {
                 try {
-                    if (!this.validateData()) {
+                    if (!this.validateData()) { return; }
+                    if (!this.isTaskChanged()) {
+                        this.$message.warning('数据未变动，无需保存');
                         return;
                     }
                     this.updateSchedule();
+
+                    console.log(JSON.stringify(this.currentTask))
 
                     if (this.currentTask.id) {
                         await window.api.updateTask(this.currentTask.id, this.currentTask);
@@ -792,11 +948,15 @@
                 if (this.currentTask.scheduleType === 'fixed' && (!this.currentTask.days ||!this.currentTask.execTime)) return showWarning('请填写定时任务的天数和执行时间');
                 if (this.currentTask.scheduleType === 'interval' &&!this.currentTask.interval) return showWarning('请填写间隔时间');
                 if (this.currentTask.dataFormat === 'html') {
-                  const xpathRegex = /^(\/\/?|@|[\w-]+|\[.*?\]|\(.*?\)|\*|@[\w-]+|\.\.|\.)/;
-                  const validateXPath = (xpath, msg) => (!xpath.trim() ||!xpathRegex.test(xpath))? showWarning(msg) : true;
-                  if (!validateXPath(this.currentTask.xpaths.table, '请输入合法表格XPath') ||!validateXPath(this.currentTask.xpaths.row, '请输入合法行XPath') || (this.currentTask.xpaths.next_page &&!validateXPath(this.currentTask.xpaths.next_page, '请输入合法下一页按钮XPath'))) return false;
-                  ['table', 'row', 'next_page'].forEach(key => this.currentTask.xpaths[key] = this.currentTask.xpaths[key].trim());
-                }
+                    const xpathRegex = /^(\/\/?|@|[\w-]+|\[.*?\]|\(.*?\)|\*|@[\w-]+|\.\.|\.)/;
+                    const validateXPath = (xpath, msg) => (!xpath.trim() ||!xpathRegex.test(xpath))? showWarning(msg) : true;
+                    // 仅验证表格 XPath 是否合法
+                    if (!validateXPath(this.currentTask.xpaths.table, '请输入合法表格XPath')) return false;
+                    // 行和下一页按钮的 XPath 可以为空
+                    if (this.currentTask.xpaths.row.trim() &&!validateXPath(this.currentTask.xpaths.row, '请输入合法行XPath')) return false;
+                    if (this.currentTask.xpaths.next_page.trim() &&!validateXPath(this.currentTask.xpaths.next_page, '请输入合法下一页按钮XPath')) return false;
+                    ['table', 'row', 'next_page'].forEach(key => this.currentTask.xpaths[key] = this.currentTask.xpaths[key].trim());
+                  }
                 if (!this.currentTask.parseValues ||!this.currentTask.parseValues.length) return showWarning('请添加解析值');
                 if (this.currentTask.parseValues.some(item =>!item.key.trim())) return showWarning('解析字段不能为空');
                 if (this.currentTask.otherValues.some(item =>!item.source.trim() ||!item.target.trim())) return showWarning('源值和目标值不能为空');

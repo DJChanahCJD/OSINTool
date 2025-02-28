@@ -2,27 +2,36 @@ import re
 from .base import BaseParser
 
 class TXTParser(BaseParser):
-    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None, maxCount=50):
+    def __init__(self, task):
+        super().__init__(task)
+        self.table_pattern = task.get('table_pattern', '')
+
+
+    async def parse(self, maxCount=0, context=None):
         """
         解析TXT文件并根据传入的 columns 和 patterns 进行处理。
         若parseType==0, 则通过 columns 根据索引定位列
         若parseType==1, 则通过 patterns 对列值进行正则处理
         使用正则匹配规则提取表格数据（这样的话，就不需要再对字段正则匹配了，但让其冗余吧）
         """
-        self.load_content(url)
+        if maxCount > 0:
+            self.maxCount = maxCount
+
+
+        self.load_content(self.url)
         table = []
         lines = self.content.split('\n')  # 按行分割文件内容
 
         print("========正在匹配表格行============")
-        print("请求参数:", url, parseType, columns, patterns, table_pattern)
 
+        # 遍历每一行
         for line in lines:
             line = line.strip()
             if not line:  # 跳过空行
                 continue
 
             # 判断是否符合表格行的规则
-            match = re.match(table_pattern, line)   # re.match 从开头匹配，部分匹配也算成功
+            match = re.match(self.table_pattern, line)   # re.match 从开头匹配，部分匹配也算成功
             if match:
                 # 通过正则匹配提取表格单元格数据
                 row_data = match.groups()
@@ -33,10 +42,10 @@ class TXTParser(BaseParser):
 
         print("========匹配表格行完成============")
         # 根据解析类型执行不同的处理
-        if parseType == 0:  # 按列索引解析
-            return self.convert_to_dict(table, columns, patterns)
-        elif parseType == 1:  # 如果是正则匹配类型，进行正则处理
-            return self.convert_to_dict_with_patterns(table, columns, patterns)
+        if self.parseType == 0:  # 按列索引解析
+            return self.convert_to_dict_with_columns(table, self.columns)
+        elif self.parseType == 1:  # 如果是正则匹配类型，进行正则处理
+            return self.convert_to_dict_with_patterns(table, self.patterns)
 
         return table
 
@@ -54,7 +63,7 @@ class TXTParser(BaseParser):
             return match.groups()
         return None  # 如果没有匹配到，则返回 None
 
-    def convert_to_dict(self, table, columns, patterns):
+    def convert_to_dict_with_columns(self, table, columns):
         """将二维数组转换为字典列表，使用 columns 来选择特定的列"""
         if not table:
             return []
@@ -74,7 +83,7 @@ class TXTParser(BaseParser):
 
         return dict_list
 
-    def convert_to_dict_with_patterns(self, table, columns, patterns):
+    def convert_to_dict_with_patterns(self, table, patterns):
         """基于正则模式将整个表格转换为字典列表"""
         if not table:
             return []

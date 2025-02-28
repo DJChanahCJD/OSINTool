@@ -1,9 +1,21 @@
 from abc import ABC, abstractmethod
 import os
 import requests
+from utils.common import get_random_user_agent
 
 class BaseParser(ABC):
-    def __init__(self):
+    def __init__(self, task):
+        parse_rules = task.get('parseValues', [])
+        columns = {rule['key']: rule['index'] for rule in parse_rules}
+        patterns = {rule['key']: rule['pattern'] for rule in parse_rules}
+
+        self.columns = columns
+        self.patterns = patterns
+        self.url = task.get('url', '')
+        self.children = task.get('children', [])
+        self.maxCount = task.get('maxCount', 10)
+        self.cookies = task.get('cookies', '')
+        self.parseType = task.get('parseType', 0)
         self.content = None
 
     def load_content(self, url):
@@ -18,13 +30,14 @@ class BaseParser(ABC):
             else:
                 raise FileNotFoundError(f"本地文件不存在: {file_path}")
         else:
-            response = requests.get(url)    # todo: 请求头？ USER_AGENTS？
+            headers = {'User-Agent': get_random_user_agent(), 'Cookie': self.cookies}
+            response = requests.get(url, headers=headers)
             response.raise_for_status()  # 检查请求是否成功
             self.content = response.text
             print(f"已加载URL: {url}")
 
     @abstractmethod
-    def parse(self, url, parseType, columns, patterns, table_pattern=None, maxCount=None):
+    def parse(self, maxCount=None, context=None):
         """
         输出: 解析表格
         """

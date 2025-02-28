@@ -8,8 +8,8 @@ tasks = db.table('tasks')
 
 # 遍历每个任务
 for task in tasks:
-    if 'before_action_group' not in task:
-        task['before_action_group'] = []
+    if 'children' not in task:
+        task['children'] = []
         # 更新数据库中的任务
         tasks.update(task, doc_ids=[task.doc_id])
 

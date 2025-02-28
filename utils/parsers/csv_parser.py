@@ -1,13 +1,17 @@
 from .base import BaseParser
-import requests
-import csv
 from io import StringIO
 import pandas as pd
 import re
 
 
 class CSVParser(BaseParser):
-    def parse(self, url, parseType=0, columns=None, patterns=None, table_pattern=None, maxCount=50):
+    def __init__(self, task):
+        super().__init__(task)
+
+    async def parse(self, maxCount=0, context=None):
+        if maxCount > 0:
+            self.maxCount = maxCount
+
         """
         解析CSV文件并根据传入的 columns 和 patterns 进行处理。
         若parseType==0, 则通过 columns 根据索引定位列
@@ -15,13 +19,13 @@ class CSVParser(BaseParser):
         一行行添加到结果列表中
         """
         # 加载 CSV 内容
-        table = self.parse_to_table(url)
+        table = self.parse_to_table(self.url)
         print("========正在解析csv文件============")
 
-        if parseType == 0:  # 按列索引解析
-            return self.convert_to_dict(table, columns, maxCount)
-        elif parseType == 1:  # 如果是正则匹配类型，进行正则处理
-            return self.convert_to_dict_with_patterns(table, patterns, maxCount)
+        if self.parseType == 0:  # 按列索引解析
+            return self.convert_to_dict_with_columns(table, self.columns, self.maxCount)
+        elif self.parseType == 1:  # 如果是正则匹配类型，进行正则处理
+            return self.convert_to_dict_with_patterns(table, self.patterns, self.maxCount)
 
         return table
 
@@ -35,7 +39,7 @@ class CSVParser(BaseParser):
 
         return table
 
-    def convert_to_dict(self, table, columns, maxCount=1000):
+    def convert_to_dict_with_columns(self, table, columns, maxCount=1000):
         """将二维数组转换为字典列表，使用 columns 来选择特定的列"""
         if not table:
             return []

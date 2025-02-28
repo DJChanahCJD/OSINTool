@@ -94,6 +94,16 @@
                             </template>
                         </el-table-column>
                         <el-table-column
+                            prop="dataFormat"
+                            label="数据格式"
+                            min-width="180">
+                            <template slot-scope="scope">
+                                <el-tooltip :content="scope.row.dataFormat" placement="top">
+                                    <span>{{ scope.row.dataFormat }}</span>
+                                </el-tooltip>
+                            </template>
+                        </el-table-column>
+                        <el-table-column
                             prop="scheduleType"
                             label="执行方式"
                             min-width="100"

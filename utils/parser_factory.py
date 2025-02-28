@@ -10,12 +10,16 @@ class ParserFactory:
     }
 
     @classmethod
-    def get_parser(cls, format_type):
+    def get_parser(cls, task):
         """获取指定格式的解析器实例"""
-        parser_class = cls._parsers.get(format_type.lower())
+        format_type = task.get('dataFormat', '').lower()
+        parser_class = cls._parsers.get(format_type)
         if not parser_class:
             raise ValueError(f'Unsupported format: {format_type}')
-        return parser_class()
+        try:
+            return parser_class(task)
+        except Exception as e:
+            raise ValueError(f'Failed to create parser for format {format_type}: {str(e)}')
 
     @classmethod
     def register_parser(cls, format_type, parser_class):

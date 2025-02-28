@@ -4,4 +4,5 @@ data/
 */__pycache__
 __pycache__
 script/
+log.txt
 # db.json
