@@ -47,6 +47,21 @@ def get_tasks():
         logger.error(f"获取所有任务时出错: {e}")
         return jsonify({"error": "获取任务时出错"}), 500
 
+@app.route('/api/tasks/basic', methods=['GET'])
+def get_basic_tasks():
+    try:
+        tasks = tasks_table.all()
+        # 只返回必要的字段（用于edit.html）
+        necessary_fields = ['id', 'title', 'isActive']
+        result = []
+        for task in tasks:
+            filtered_task = {field: task.get(field) for field in necessary_fields}
+            result.append(filtered_task)
+        logger.info(f"成功获取所有任务的基本信息，数量：{len(tasks)}")
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"获取所有任务的基本信息时出错: {e}")
+        return jsonify({"error": "获取任务时出错"}), 500
 
 @app.route('/api/tasks/paginated', methods=['GET'])
 def get_tasks_paginated():

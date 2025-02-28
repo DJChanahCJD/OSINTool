@@ -33,6 +33,11 @@ contextBridge.exposeInMainWorld('api', {
             .then(response => response.json())
     },
 
+    getTasksBasic: () => {
+        return fetch(`${baseURL}/api/tasks/basic`)
+          .then(response => response.json())
+    },
+
     // 获取分页任务
     getTasksPaginated: (params) => {
         // 将对象参数转为查询字符串

@@ -715,7 +715,7 @@
             }, 300),    // 300毫秒内只执行一次，防止多次上传
             async loadTasks() {
                 try {
-                    this.tasks = await window.api.getTasks();
+                    this.tasks = await window.api.getTasksBasic();
                     if (this.tasks.length > 0 && this.currentTask.id) {
                         await this.loadTask(this.currentTask.id);
                     } else {
