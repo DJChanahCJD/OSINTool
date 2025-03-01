@@ -3,8 +3,7 @@ from datetime import datetime
 import os
 import time
 import requests
-from utils.common import get_random_user_agent
-from utils.regex_matcher import match_one
+from utils.common import get_random_user_agent, match_one
 
 class BaseParser(ABC):
     def __init__(self, task):
