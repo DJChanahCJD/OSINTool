@@ -74,9 +74,9 @@
                         <el-table-column
                             prop="title"
                             label="任务名称"
-                            min-width="180">
+                            min-width="120">
                             <template slot-scope="scope">
-                                <el-tooltip :content="scope.row.title" placement="top">
+                                <el-tooltip :content="getTooltipContent(scope.row)" placement="top">
                                     <span>{{ scope.row.title }}</span>
                                 </el-tooltip>
                             </template>
@@ -84,7 +84,7 @@
                         <el-table-column
                             prop="url"
                             label="URL"
-                            min-width="240">
+                            min-width="200">
                             <template slot-scope="scope">
                                 <el-tooltip :content="scope.row.url" placement="top">
                                     <a :href="scope.row.url" target="_blank" class="url-cell">
@@ -96,7 +96,7 @@
                         <el-table-column
                             prop="dataFormat"
                             label="数据格式"
-                            min-width="180">
+                            min-width="80">
                             <template slot-scope="scope">
                                 <el-tooltip :content="scope.row.dataFormat" placement="top">
                                     <span>{{ scope.row.dataFormat }}</span>
@@ -119,7 +119,7 @@
                         <el-table-column
                             prop="next_run_time"
                             label="下次运行时间"
-                            min-width="140"
+                            min-width="120"
                             sortable="custom">
                             <template slot-scope="scope">
                                 <el-tooltip :content="scope.row.next_run_time" placement="top">
@@ -169,6 +169,15 @@
                                             plain
                                             icon="el-icon-delete"
                                             @click="deleteTask(scope.row)">
+                                        </el-button>
+                                    </el-tooltip>
+                                    <el-tooltip content="爬取结果" placement="top">
+                                        <el-button
+                                            size="mini"
+                                            type="warning"
+                                            plain
+                                            icon="el-icon-folder-opened"
+                                            @click="getResult(scope.row)">
                                         </el-button>
                                     </el-tooltip>
                                 </div>
@@ -253,6 +262,9 @@
             }
         },
         methods: {
+            getTooltipContent(row) {
+                return `${row.title}\n${row.id}`;
+            },
             getScheduleTypeTag(type) {
                 const tagMap = {
                     'fixed': 'primary',
@@ -463,6 +475,20 @@
                     }
                 }
             },
+            async getResult(task) {
+                try {
+                    if (!task.id) {
+                        this.$message.warning('请先选择任务');
+                        return;
+                    }
+                    await window.api.openTaskResultFolder(task.id);
+                } catch (error) {
+                    this.$message.error({
+                        message: '打开文件夹失败',
+                        duration: 3000
+                    });
+                }
+            }
         },
         async mounted() {
             try {

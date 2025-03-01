@@ -180,7 +180,6 @@ contextBridge.exposeInMainWorld('api', {
             return false;
         }
     },
-
     // 打开根目录data/taskId
     openTaskResultFolder: (taskId) => {
         const rootPath = path.resolve(__dirname, '..');  // 根目录
