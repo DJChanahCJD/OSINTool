@@ -278,7 +278,7 @@ async def run_task(task_id):
         Task = Query()
         tasks_table.update({'lastRunTime': current_time}, Task.id == task_id)
 
-        logger.info(f"任务 {task_id} 运行成功")
+        logger.info(f"任务 {task_id} 运行成功， 运行时间: {current_time}")
         return jsonify({
             'success': True,
             'task': {
@@ -380,7 +380,16 @@ async def execute_task_parsing(task, max_count):
 async def run_scheduled_task(task_id):
     with app.app_context():
         await run_task(task_id)
+        job = scheduler.get_job(task_id)
+        if job:
+            next_run_time = job.trigger.get_next_fire_time(None, datetime.now().astimezone())   # 获取下一次运行时间(以当前系统时区为准)
+            next_run_time_str = next_run_time.strftime('%Y-%m-%d %H:%M:%S') if next_run_time else None
+            Task = Query()
+            tasks_table.update({'next_run_time': next_run_time_str}, Task.id == task_id)
 
+            print(f"任务 {task_id} 已运行, 下次运行时间: {next_run_time_str}")
+        else:
+            print(f"未找到任务 {task_id} 的调度信息")
 
 def schedule_task(task):
     task_id = task['id']

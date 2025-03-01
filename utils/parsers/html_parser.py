@@ -6,9 +6,6 @@ from utils.common import get_random_user_agent
 from urllib.parse import urljoin
 import re
 import asyncio
-from utils.logger import setup_logger
-
-logger = setup_logger()
 
 from .base import BaseParser
 
@@ -292,6 +289,5 @@ class HTMLParser(BaseParser):
             return data
 
         except Exception as e:
-            logger.error(f"解析错误: {str(e)}\n{traceback.format_exc()}")
             print(f"解析错误: {str(e)}")
             return data
