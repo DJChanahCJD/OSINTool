@@ -21,8 +21,10 @@ class HTMLParser(BaseParser):
         self.table_xpath = xpaths.get('table', '')
         self.rows_xpath = xpaths.get('row', '')
         self.next_page_xpath = xpaths.get('next_page', '')
+        self.cookie_list = self._parse_cookies()
         self.headless = False  # True表示不显示浏览器窗口
         self.browser = None
+        self.USER_AGENT = get_random_user_agent()
 
         # 提前编译正则表达式，使用 re.DOTALL 标志以匹配多行文本
         self.compiled_patterns = {}
@@ -37,8 +39,15 @@ class HTMLParser(BaseParser):
     def _parse_cookies(self):
         if self.cookies:
             cookie_list = self.cookies.split(';')
-            return {cookie.strip().split('=', 1)[0]: cookie.strip().split('=', 1)[1] for cookie in cookie_list}
-        return {}
+            return [
+                {
+                    'name': cookie.strip().split('=', 1)[0],
+                    'value': cookie.strip().split('=', 1)[1],
+                    'url': self.url
+                }
+                for cookie in cookie_list
+            ]
+        return []
 
     async def _perform_actions(self, page):
         if self.before_action_group:
@@ -48,23 +57,23 @@ class HTMLParser(BaseParser):
                 action_type = action.get('actionType')
                 target = action.get('target')
                 if action_type == 'click':
-                    await self._perform_click_action(page, target)
+                    print(f"执行点击动作: {target}")
+                    element = page.locator(f'xpath={target}')
+                    await self._perform_click_action(element)
                 elif action_type == 'input':
-                    await self._perform_input_action(page, target)
+                    print(f"执行输入动作: {target}")
+                    await self._perform_input_action(element, target)
 
-    async def _perform_click_action(self, page, target):
+    async def _perform_click_action(self, element):
         try:
-            element = page.locator(f'xpath={target}')
             if await element.is_visible() and not await element.is_disabled():
-                print(f"执行点击动作: {target}")
                 await element.click()
                 await asyncio.sleep(random.uniform(1, 3))  # 等待动作执行完成
         except Exception as e:
             print(f"点击动作失败: {str(e)}")
 
-    async def _perform_input_action(self, page, target):
+    async def _perform_input_action(self, element, target):
         try:
-            element = page.locator(f'xpath={target}')
             if element and await element.is_visible() and not await element.is_disabled():
                 print(f"执行输入动作: {target}")
                 await element.fill(target)
@@ -129,7 +138,9 @@ class HTMLParser(BaseParser):
             child_url = self.get_full_url(child_url)
 
         # 创建新的 context
-        child_context = await self.browser.new_context(extra_http_headers={'User-Agent': get_random_user_agent()})
+        child_context = await self.browser.new_context(extra_http_headers={'User-Agent': self.USER_AGENT})
+        if self.cookie_list:
+            await child_context.add_cookies(self.cookie_list)
         try:
             subtask['url'] = child_url
             from utils.parser_factory import ParserFactory
@@ -151,44 +162,38 @@ class HTMLParser(BaseParser):
         if maxCount > 0:
             self.maxCount = maxCount
 
-        cookie_dict = self._parse_cookies()
-
         async with async_playwright() as p:
             isMainTask = context is None
             if isMainTask:
-                self.browser = await p.chromium.launch(headless=self.headless)
-                context = await self.browser.new_context(extra_http_headers={'User-Agent': get_random_user_agent()})
-            page = await context.new_page()
+                self.browser = await p.chromium.launch(headless=self.headless)  # 打开浏览器
+                context = await self.browser.new_context(extra_http_headers={'User-Agent': self.USER_AGENT})
 
-            if cookie_dict:
-                print("设置cookies...", cookie_dict)
-                await page.context.add_cookies([{
-                    'name': key,
-                    'value': value,
-                    'url': self.url,
-                } for key, value in cookie_dict.items()])
+            if self.cookie_list:
+                await context.add_cookies(self.cookie_list)
+            page = await context.new_page()
 
             print("等待页面加载...")
             await page.goto(self.url, wait_until="domcontentloaded")
+            await asyncio.sleep(3)  # 等待页面加载完成
 
-            # await asyncio.sleep(3)
-            print("滚动到表格底部...")
-            await page.evaluate(f"""
-                const table = document.evaluate('{self.table_xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-                if (table) table.scrollIntoView();
-            """)
+            # print("滚动到表格底部...")
+            # await page.evaluate(f"""
+            #     const table = document.evaluate('{self.table_xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            #     if (table) table.scrollIntoView();
+            # """)
 
             await self._perform_actions(page)
 
             all_results = await self._parse_pages(page)
 
             if isMainTask:
+                print("关闭浏览器...")
                 await context.close()
                 await self.browser.close()
 
         print(f"======是否为主任务：{isMainTask}，解析完成=======")
         print(f"总数据量: {len(all_results)}")
-        print(f"前3行: {all_results[:3]}")
+        print(f"首个数据: {all_results[0]}")
         return all_results
 
     async def parse_table_with_patterns(self, html_content, task=None):
@@ -200,7 +205,7 @@ class HTMLParser(BaseParser):
             table = next(iter(tree.xpath(self.table_xpath)), tree)
             if table is tree:
                 print(f"未找到表格元素：{self.table_xpath}")
-            print(f"表格: {table}")
+            print(f"表格前100个字符: {table[:100]}")
 
             # 获取行元素
             rows = table.xpath(self.rows_xpath) if self.rows_xpath else [table]
@@ -216,22 +221,24 @@ class HTMLParser(BaseParser):
                 row_data = {}
 
                 for field, pattern in self.patterns.items():
-                    print(f"当前使用的字段: {field}")
                     compiled_pattern = self.compiled_patterns.get(field)
                     if not compiled_pattern:
                         print(f"无效的正则表达式: {pattern}")
                         continue
+
+                    print(
+                        f"当前使用的字段: {field}",
+                        f"当前使用的正则表达式: {str(compiled_pattern)}",
+                    )
 
                     matches = list(compiled_pattern.finditer(row_html))
                     if not matches:
                         print(f"未找到匹配项: {field}")
                         continue
 
-                    print(f"匹配项sssss: {matches}")
                     for match in matches:
                         print(f"匹配项内容: {match.group(0)}")
                         field_names = [item.strip() for item in field.split(',')]
-                        print(f"字段名: {field_names}")
                         if len(field_names) > 1:
                             for i, field in enumerate(field_names, 1):
                                 if field not in row_data:
@@ -252,7 +259,6 @@ class HTMLParser(BaseParser):
 
                 if row_data:
                     data.append(row_data)
-                    print(f"当前行解析完成: {row_data}")
 
                 # 处理子任务
                 children = task.get('children', [])

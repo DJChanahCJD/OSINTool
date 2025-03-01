@@ -118,14 +118,14 @@ def get_tasks_paginated():
         return jsonify({"error": "获取任务时出错"}), 500
 
 @app.route('/api/tasks', methods=['POST'])
-def create_task():
+async def create_task():
     try:
         data = request.json
         task_id = str(shortuuid.uuid())
         data['id'] = task_id
         tasks_table.insert(data)
         if data.get('isActive', True):
-            schedule_task(data)
+            await schedule_task(data)
         logger.info(f"创建任务成功, ID: {task_id}")
         return jsonify({'id': task_id}), 201
     except Exception as e:
@@ -385,12 +385,12 @@ async def execute_task_parsing(task, max_count):
     result = addOtherValues(table, other_rules, parser.get_content())
     return result
 
-def run_scheduled_task(task_id):
+async def run_scheduled_task(task_id):
     with app.app_context():
-        run_task(task_id)
+        await run_task(task_id)
 
 
-def schedule_task(task):
+async def schedule_task(task):
     task_id = task['id']
     schedule_type = task['scheduleType']
     job = None

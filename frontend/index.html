@@ -277,17 +277,17 @@
                     });
 
                     const taskIds = this.selectedTasks.map(task => task.id);
-                    await apiCall(taskIds);
+                    const response = apiCall(taskIds);
                     await this.loadTasks();
                     this.selectedTasks = [];
                     this.$message.success({
-                        message: `${operation}成功`,
+                        message: `${operation}成功：${response}`,
                         duration: 2000
                     });
                 } catch (error) {
                     if (error !== 'cancel') {
                         this.$message.error({
-                            message: `${operation}失败`,
+                            message: `${operation}失败：${error}`,
                             duration: 3000
                         });
                         console.error('Batch operation error:', error);
@@ -377,27 +377,32 @@
             async loadTasks() {
                 this.loading = true;
                 try {
-                  // 整合所有查询参数
-                  const params = {
-                    page: this.currentPage,
-                    perPage: this.perPage,
-                    searchQuery: this.searchQuery,
-                    sort: JSON.stringify(this.sort),
-                    filters: JSON.stringify(this.filters)
-                  };
-                  console.log('Fetching tasks with params:', params);
-                  const response = await window.api.getTasksPaginated(params);
-                  this.tasks = Array.isArray(response.data) ? response.data : [];
-                  this.totalTasks = response.total;
-                  localStorage.setItem('params', JSON.stringify(params));
+                    // 整合所有查询参数
+                    const params = {
+                        page: this.currentPage,
+                        perPage: this.perPage,
+                        searchQuery: this.searchQuery,
+                        sort: JSON.stringify(this.sort),
+                        filters: JSON.stringify(this.filters)
+                    };
+                    console.log('Fetching tasks with params:', params);
+                    const response = await window.api.getTasksPaginated(params);
+                    this.tasks = Array.isArray(response.data) ? response.data : [];
+                    // 移除每一项的 children 属性，避免el-table渲染子任务
+                    this.tasks = this.tasks.map(task => {
+                        const { children, ...rest } = task;
+                        return rest;
+                    });
+                    this.totalTasks = response.total;
+                    localStorage.setItem('params', JSON.stringify(params));
                 } catch (error) {
-                  this.$message.error({
-                    message: '加载任务失败',
-                    duration: 3000
-                  });
-                  console.error('Load tasks error:', error);
+                    this.$message.error({
+                        message: '加载任务失败',
+                        duration: 3000
+                    });
+                    console.error('Load tasks error:', error);
                 } finally {
-                  this.loading = false;
+                    this.loading = false;
                 }
             },
             handlePageChange(page) {

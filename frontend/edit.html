@@ -492,6 +492,11 @@
         },
         methods: {
             addSubtask(parentTask) {
+                // 第一层最多5个子任务
+                if (parentTask.children && parentTask.children.length >= 5) {
+                    this.$message.warning('每一层最多 5 个子任务。请优化你的任务结构！');
+                    return;
+                }
                 const newSubtask = {
                     id: Date.now(),
                     children: [],
@@ -517,10 +522,16 @@
                 console.log("添加子任务：", parentTask.children)
             },
             append(node) {
+                const parentLevel = this.getLevel(node);
+                console.log("添加子任务：", parentLevel)
+                if (parentLevel > 2 || node.children.length >= 5) {
+                    this.$message.warning('最多两层，且每一层最多 5 个子任务。请优化你的任务结构！');
+                    return;
+                }
                 const newNode = {
                     id: Date.now(),
                     children: [],
-                    title: '子任务',
+                    title: `子任务${node.children? node.children.length + 1 : 1}`,
                     linkXPath: '',
                     dataFormat: 'txt',
                     parseType: 1, // 0: 列解析, 1:正则匹配
@@ -547,7 +558,7 @@
             getLevel(node) {
                 let level = 0;
                 let current = node;
-                while (current &&!current.isRoot) {
+                while (current && current!== this.currentTask) {
                     current = this.findParent(current);
                     level++;
                 }
@@ -636,10 +647,8 @@
             validateSubtask(subtask) {
                 const showWarning = (msg) => (this.$message.warning(msg), false);
                 if (!subtask.title.trim()) return showWarning('请输入子任务名称');
-                const isValidUrl = /^https?:\/\/.+/i.test(subtask.url) || /file:\/\/.+/i.test(subtask.url);
-                if (!subtask.url.trim() ||!isValidUrl) return showWarning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
                 if (!subtask.dataFormat) return showWarning('请选择数据格式');
-                if (subtask.dataFormat!== 'html' && subtask.table_pattern &&!subtask.table_pattern.trim()) {
+                if (subtask.dataFormat!== 'html' && subtask.table_pattern &&!subtask.table_pattern()) {
                     try { new RegExp(subtask.table_pattern); } catch (e) { return showWarning('表格正则匹配不合法，请先在https://regex101.com/ 验证是否匹配'); }
                 }
                 if (subtask.scheduleType === 'fixed' && (!subtask.days ||!subtask.execTime)) return showWarning('请填写定时任务的天数和执行时间');
@@ -931,13 +940,14 @@
                     console.log(JSON.stringify(this.currentTask))
 
                     if (this.currentTask.id) {
-                        await window.api.updateTask(this.currentTask.id, this.currentTask);
+                        const response = await window.api.updateTask(this.currentTask.id, this.currentTask);
+                        this.$message.success('保存成功: ' + JSON.stringify(response));
                     } else {
                         const result = await window.api.createTask(this.currentTask);
                         this.currentTask.id = result.id;
+                        this.$message.success('创建成功' + JSON.stringify(result) + '，请保存ID');
                     }
                     await this.loadTasks();
-                    this.$message.success('保存成功');
                 } catch (error) {
                     this.$message.error('保存失败: ' + error.message);
                 }
@@ -1006,6 +1016,20 @@
                 }
                 if (!this.currentTask.maxCount) return showWarning('请填写最多爬取数据数量');
                 if (this.currentTask.cookies &&!/^([^=;]+=[^;]*;?\s*)+$/.test(this.currentTask.cookies)) return showWarning('请输入合法的Cookies格式，如bid=xxx; xyz=999; ...');
+                // 检查子任务名称是否唯一
+                const checkSubtaskNames = (tasks) => {
+                    const names = new Set();
+                    return tasks.every(task => {
+                        if (names.has(task.title)) {
+                            showWarning(`子任务名称 "${task.title}" 在同一层级下重复，请修改`);
+                            return false;
+                        }
+                        names.add(task.title);
+                        return!task.children || checkSubtaskNames(task.children);
+                    });
+                };
+
+                if (this.currentTask.children &&!checkSubtaskNames(this.currentTask.children)) return false;
                 return true;
             },
             addParseValue(task = this.currentTask) { task.parseValues.push({ key: '', index: 0, pattern: '' }); },
