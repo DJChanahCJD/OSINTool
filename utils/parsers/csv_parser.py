@@ -3,7 +3,6 @@ from io import StringIO
 import pandas as pd
 import re
 
-
 class CSVParser(BaseParser):
     def __init__(self, task):
         super().__init__(task)
@@ -27,6 +26,8 @@ class CSVParser(BaseParser):
         elif self.parseType == 1:  # 如果是正则匹配类型，进行正则处理
             return self.convert_to_dict_with_patterns(table, self.patterns, self.maxCount)
 
+        print("========解析csv文件完成，添加其他值...============")
+        table = self.addOtherValues(table, self.content)
         return table
 
     def parse_to_table(self, url):

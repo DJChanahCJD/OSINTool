@@ -87,6 +87,7 @@ class HTMLParser(BaseParser):
             print("获取页面源码...")
             self.content = await page.content()
 
+            print("解析表格数据...")
             results = await self.parse_table_with_patterns(self.content, self.task)
             if not results:
                 print("未找到表格数据")
@@ -191,9 +192,14 @@ class HTMLParser(BaseParser):
                 await context.close()
                 await self.browser.close()
 
+         # 添加其他值
+        print("添加其他值...")
+        all_results = self.addOtherValues(all_results, html_content=self.content)
+
         print(f"======是否为主任务：{isMainTask}，解析完成=======")
         print(f"总数据量: {len(all_results)}")
         print(f"首个数据: {all_results[0]}")
+
         return all_results
 
     async def parse_table_with_patterns(self, html_content, task=None):

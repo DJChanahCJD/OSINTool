@@ -47,6 +47,8 @@ class TXTParser(BaseParser):
         elif self.parseType == 1:  # 如果是正则匹配类型，进行正则处理
             return self.convert_to_dict_with_patterns(table, self.patterns)
 
+        print("========添加其他值...============")
+        table = self.addOtherValues(table, self.content)
         return table
 
     def is_table_line(self, line, table_pattern):

@@ -1,5 +1,4 @@
 import random
-import time
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from tinydb import TinyDB, Query
@@ -8,7 +7,6 @@ from datetime import datetime
 import os
 import shortuuid
 from utils.parser_factory import ParserFactory
-from utils.regex_matcher import match_one, match_all
 from utils.logger import setup_logger
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -378,11 +376,7 @@ def import_tasks():
 async def execute_task_parsing(task, max_count):
     # 根据数据格式初始化解析器
     parser = ParserFactory.get_parser(task)
-    table = await parser.parse(max_count, context=None)
-
-    # 添加其他值
-    other_rules = task['otherValues']
-    result = addOtherValues(table, other_rules, parser.get_content())
+    result = await parser.parse(max_count, context=None)
     return result
 
 async def run_scheduled_task(task_id):
@@ -415,39 +409,6 @@ async def schedule_task(task):
     print(f"已添加定时任务: {task_id}")
     print(f"任务详情: {task}")
 
-def addOtherValues(data, other_rules, html_content):
-    specialValues = getSpecialValues()
-    result = []
-    memo = {}
-    for item in data:
-        for rule in other_rules:
-            if rule['valueType'] == 'fixed':
-                item[rule['source']] = rule['target']
-            elif rule['valueType'] == 'regex':  # 只允许解析单个
-                if rule['source'] not in memo:
-                    memo[rule['source']] = match_one(html_content, rule['target'])
-                value = memo[rule['source']]
-                item[rule['source']] = value
-            elif rule['valueType'] == 'special':
-                value = specialValues.get(rule['target'])
-                if value is not None:
-                    item[rule['source']] = value
-                else:
-                    print(f"Key {rule['target']} not found in specialValues.")
-
-        result.append(item)
-    return result
-
-# 生成特殊值字典
-def getSpecialValues():
-    current_timestamp = int(time.time())
-    current_time_str = datetime.fromtimestamp(current_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-    specialValues = {
-        'attack_time': current_time_str,
-        'attack_timestamp': current_timestamp
-    }
-    return specialValues
-
 def init_scheduler():
     print("初始化调度器...")
     scheduler.start()
@@ -458,5 +419,4 @@ def init_scheduler():
 
 if __name__ == '__main__':
     init_scheduler()
-    # app.run(debug=True, port=5000) # 调试模式下会重复运行定时任务
     app.run(debug=False, port=5001)

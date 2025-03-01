@@ -21,7 +21,7 @@ class ParserFactory:
         except Exception as e:
             raise ValueError(f'Failed to create parser for format {format_type}: {str(e)}')
 
-    @classmethod
-    def register_parser(cls, format_type, parser_class):
-        """注册新的解析器"""
-        cls._parsers[format_type.lower()] = parser_class
+    # @classmethod
+    # def register_parser(cls, format_type, parser_class):
+    #     """注册新的解析器"""
+    #     cls._parsers[format_type.lower()] = parser_class

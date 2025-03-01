@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 import os
+import time
 import requests
 from utils.common import get_random_user_agent
+from utils.regex_matcher import match_one
 
 class BaseParser(ABC):
     def __init__(self, task):
@@ -16,6 +19,7 @@ class BaseParser(ABC):
         self.maxCount = task.get('maxCount', 10)
         self.cookies = task.get('cookies', '')
         self.parseType = task.get('parseType', 0)
+        self.other_rules = task['otherValues']
         self.content = None
 
     def load_content(self, url):
@@ -48,3 +52,44 @@ class BaseParser(ABC):
         输出: 网页源码
         """
         return self.content
+
+    # 添加其他值
+    def addOtherValues(self, data, html_content):
+        specialValues = self.getSpecialValues()
+        result = []
+        memo = {}
+        if not data:
+            data = [{}] # 如果data为空，则添加一个空字典用于其他值匹配
+
+        for item in data:
+            for rule in self.other_rules:
+                if rule['valueType'] == 'fixed':
+                    item[rule['source']] = rule['target']
+                elif rule['valueType'] == 'regex':  # 只允许解析单个
+                    if rule['source'] not in memo:
+                        memo[rule['source']] = match_one(html_content, rule['target'])
+                    value = memo[rule['source']]
+                    item[rule['source']] = value
+                elif rule['valueType'] == 'special':
+                    value = specialValues.get(rule['target'])
+                    if value is not None:
+                        item[rule['source']] = value
+                    else:
+                        print(f"Key {rule['target']} not found in specialValues.")
+
+            result.append(item)
+
+        if result[0] == {}:
+            return []   # 如果result为空，则返回空列表
+
+        return result
+
+    # 特殊值配置
+    def getSpecialValues(self):
+        current_timestamp = int(time.time())
+        current_time_str = datetime.fromtimestamp(current_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        specialValues = {
+            'attack_time': current_time_str,
+            'attack_timestamp': current_timestamp
+        }
+        return specialValues

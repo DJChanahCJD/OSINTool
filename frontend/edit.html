@@ -9,7 +9,7 @@
     <link rel="preload" href="edit.html">
     <link rel="stylesheet" href="./styles/edit.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"> -->
 </head>
 <body>
 <div id="app" v-cloak>
@@ -656,14 +656,13 @@
                 if (subtask.dataFormat === 'html') {
                     const xpathRegex = /^(\/\/?|@|[\w-]+|\[.*?\]|\(.*?\)|\*|@[\w-]+|\.\.|\.)/;
                     const validateXPath = (xpath, msg) => (!xpath.trim() ||!xpathRegex.test(xpath))? showWarning(msg) : true;
-                    // 仅验证表格 XPath 是否合法
-                    if (!validateXPath(subtask.xpaths.table, '请输入合法表格XPath')) return false;
-                    // 行和下一页按钮的 XPath 可以为空
+                    // 验证 XPath（可空）
+                    if (subtask.xpaths.table.trim() &&!validateXPath(subtask.xpaths.table, '请输入合法表格XPath')) return false;
                     if (subtask.xpaths.row.trim() &&!validateXPath(subtask.xpaths.row, '请输入合法行XPath')) return false;
                     if (subtask.xpaths.next_page.trim() &&!validateXPath(subtask.xpaths.next_page, '请输入合法下一页按钮XPath')) return false;
                     ['table', 'row', 'next_page'].forEach(key => subtask.xpaths[key] = subtask.xpaths[key].trim());
                 }
-                if (!subtask.parseValues ||!subtask.parseValues.length) return showWarning('请添加解析值');
+                //if (!subtask.parseValues ||!subtask.parseValues.length) return showWarning('请添加解析值');
                 if (subtask.parseValues.some(item =>!item.key.trim())) return showWarning('解析字段不能为空');
                 if (subtask.otherValues.some(item =>!item.source.trim() ||!item.target.trim())) return showWarning('源值和目标值不能为空');
                 if (subtask.parseType === 1) {
@@ -999,13 +998,12 @@
                 if (this.currentTask.dataFormat === 'html') {
                     const xpathRegex = /^(\/\/?|@|[\w-]+|\[.*?\]|\(.*?\)|\*|@[\w-]+|\.\.|\.)/;
                     const validateXPath = (xpath, msg) => (!xpath.trim() ||!xpathRegex.test(xpath))? showWarning(msg) : true;
-                    // 仅验证表格 XPath 是否合法
-                    if (!validateXPath(this.currentTask.xpaths.table, '请输入合法表格XPath')) return false;
-                    // 行和下一页按钮的 XPath 可以为空
+                    // 验证 XPath（可空）
+                    if (this.currentTask.xpaths.table.trim() &&!validateXPath(this.currentTask.xpaths.table, '请输入合法表格XPath')) return false;
                     if (this.currentTask.xpaths.row.trim() &&!validateXPath(this.currentTask.xpaths.row, '请输入合法行XPath')) return false;
                     if (this.currentTask.xpaths.next_page.trim() &&!validateXPath(this.currentTask.xpaths.next_page, '请输入合法下一页按钮XPath')) return false;
                     ['table', 'row', 'next_page'].forEach(key => this.currentTask.xpaths[key] = this.currentTask.xpaths[key].trim());
-                  }
+                }
                 if (!this.currentTask.parseValues ||!this.currentTask.parseValues.length) return showWarning('请添加解析值');
                 if (this.currentTask.parseValues.some(item =>!item.key.trim())) return showWarning('解析字段不能为空');
                 if (this.currentTask.otherValues.some(item =>!item.source.trim() ||!item.target.trim())) return showWarning('源值和目标值不能为空');
