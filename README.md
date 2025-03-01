@@ -1,15 +1,51 @@
 ## 项目概述
-OSINTool 是一个自动化爬虫客户端，包含一个Flask后端和一个Electron客户端，用于解析和管理OSINT任务。
+OSINTool 是一个自动化爬虫客户端，包含一个Flask后端和一个Electron客户端，用于执行和管理爬虫任务。
+
+
+
+### 快速开始
+
+#### 安装依赖
+
+在`frontend`目录下运行以下命令安装**前端依赖**：
+
+```bash
+npm install
+```
+
+在项目根目录下运行以下命令安装**后端依赖**：
+
+```bash
+pip install flask flask-cors flask[async] tinydb shortuuid requests lxml pandas apscheduler playwright
+playwright install
+```
+
+#### 启动前后端
+
+在`根目录`启动**Flask后端**：
+
+```bash
+python app.py
+```
+
+在`frontend`目录启动**Electron客户端**：
+
+
+```bash
+npm start
+```
+
+> 请确保已经安装了 Playwright 所需的浏览器和驱动，可通过 `playwright install` 命令进行安装。
 
 
 
 ### 技术栈
-#### 前端技术栈
+#### 前端
 - 页面构建：HTML/CSS/JS
 - 客户端开发：Electron
 - 组件库：ElementUI
 
-#### 后端技术栈
+#### 后端
 - 本地服务器：Flask
 - 数据爬取：Playwirght, Requests
 - 定时任务：APSchedule
@@ -38,37 +74,6 @@ OSINTool 是一个自动化爬虫客户端，包含一个Flask后端和一个Ele
 ├── app.py  								# Flask后端（含API）
 ├── db.json  								# TinyDB数据库
 ```
-
-
-
-### 快速开始
-
-#### 安装依赖
-在`frontend`目录下运行以下命令安装**前端依赖**：
-```bash
-npm install
-```
-
-在项目根目录下运行以下命令安装**后端依赖**：
-
-```bash
-pip install flask flask-cors flask[async] tinydb shortuuid requests lxml pandas apscheduler playwright
-playwright install
-```
-
-在`根目录`启动**Flask后端**：
-
-```bash
-python app.py
-```
-在`frontend`目录启动**Electron客户端**：
-
-
-```bash
-npm start
-```
-
-> 请确保已经安装了 Playwright 所需的浏览器和驱动，可通过 `playwright install` 命令进行安装。
 
 
 
