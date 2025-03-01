@@ -1,3 +1,4 @@
+import asyncio
 import random
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -9,7 +10,7 @@ import shortuuid
 from utils.parser_factory import ParserFactory
 from utils.logger import setup_logger
 import logging
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # https://regex101.com/
 
@@ -21,7 +22,7 @@ db = TinyDB('db.json')
 tasks_table = db.table('tasks')
 
 # 初始化调度器
-scheduler = BackgroundScheduler()
+scheduler = AsyncIOScheduler()
 # 初始化日志
 logger = setup_logger()
 # 自定义日志记录器，添加 API 信息
@@ -69,13 +70,10 @@ def get_tasks_paginated():
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('perPage', 10))
         search = request.args.get('searchQuery', '').lower()
-        print ("get_tasks_paginated 1")
 
         sort = json.loads(request.args.get('sort', '[]'))   # 是一个对象sort= [{ sortField: 'title', sortOrder: 'asc' }]
-        print ("get_tasks_paginated 1111")
 
         filters = json.loads(request.args.get('filters', '{}'))    # 是一个对象filters = { scheduleType: ['fixed'] }
-        print ("get_tasks_paginated2")
 
         # 调试输出
         print(f"Page: {page}, Per Page: {per_page}, Search: {search}, Sort: {sort}, Filters: {filters}")
@@ -100,7 +98,6 @@ def get_tasks_paginated():
                 placeholder = ''
                 tasks.sort(key=lambda t: placeholder if t.get(field) is None else t.get(field), reverse=(order == "desc"))
 
-
         # 分页处理
         start, end, total = (page - 1) * per_page, (page - 1) * per_page + per_page, len(tasks)
         paginated_tasks = tasks[start:end]
@@ -123,7 +120,7 @@ async def create_task():
         data['id'] = task_id
         tasks_table.insert(data)
         if data.get('isActive', True):
-            await schedule_task(data)
+            schedule_task(data)
         logger.info(f"创建任务成功, ID: {task_id}")
         return jsonify({'id': task_id}), 201
     except Exception as e:
@@ -141,7 +138,7 @@ def get_task(task_id):
     return jsonify(task)
 
 @app.route('/api/tasks/<string:task_id>', methods=['PUT'])
-def update_task(task_id):
+async def update_task(task_id):
     try:
         data = request.json
         Task = Query()
@@ -188,18 +185,19 @@ def delete_tasks():
 
 
 @app.route('/api/tasks/<string:task_id>/status', methods=['PUT'])
-def update_task_status(task_id):
+async def update_task_status(task_id):
     try:
         data = request.json
         isActive = data.get('isActive', False)
-        update_task_status_func(task_id, isActive)
+        await update_task_status_func(task_id, isActive)
         logger.info(f"更新任务状态成功, ID: {task_id}, 运行中: {isActive}")
+        print(f"更新任务状态成功, ID: {task_id}, 运行中: {isActive}")
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"更新任务状态失败: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-def update_task_status_func(task_id, isActive):
+async def update_task_status_func(task_id, isActive):
     Task = Query()
     # 获取当前任务的状态
     task = tasks_table.get(Task.id == task_id)
@@ -384,7 +382,7 @@ async def run_scheduled_task(task_id):
         await run_task(task_id)
 
 
-async def schedule_task(task):
+def schedule_task(task):
     task_id = task['id']
     schedule_type = task['scheduleType']
     job = None
@@ -402,21 +400,38 @@ async def schedule_task(task):
 
     # 更新任务的 next_run_time
     if job:
-        next_run_time = job.next_run_time.strftime('%Y-%m-%d %H:%M:%S') if job.next_run_time else None
+        next_run_time = job.trigger.get_next_fire_time(None, datetime.now().astimezone())   # 获取下一次运行时间(以当前系统时区为准)
+        next_run_time_str = next_run_time.strftime('%Y-%m-%d %H:%M:%S') if next_run_time else None
         Task = Query()
-        tasks_table.update({'next_run_time': next_run_time}, Task.id == task_id)
+        tasks_table.update({'next_run_time': next_run_time_str}, Task.id == task_id)
 
     print(f"已添加定时任务: {task_id}")
     print(f"任务详情: {task}")
 
 def init_scheduler():
     print("初始化调度器...")
-    scheduler.start()
     tasks = tasks_table.all()
     for task in tasks:
         if task.get('isActive', True):
             schedule_task(task)
 
-if __name__ == '__main__':
+# AsyncIOScheduler 依赖于 asyncio 的事件循环来运行异步任务，需要启动事件循环
+async def main():
     init_scheduler()
-    app.run(debug=False, port=5001)
+    scheduler.start()
+    # 启动 Flask 应用
+    import threading
+    def run_flask_app():
+        app.run(debug=False, port=5001, threaded=True)
+
+    flask_thread = threading.Thread(target=run_flask_app)
+    flask_thread.start()
+
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+
+if __name__ == '__main__':
+    asyncio.run(main())
