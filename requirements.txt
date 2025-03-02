@@ -1,0 +1,10 @@
+flask
+flask-cors
+flask[async]
+tinydb
+shortuuid
+requests
+lxml
+pandas
+apscheduler
+playwright
