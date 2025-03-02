@@ -81,11 +81,13 @@ npm start
 
 ### 任务列表页（index.html）
 
-![image-20250301183926480](https://djchan-xyz.pages.dev/file/AgACAgUAAyEGAASJIjr1AAICh2fC4-HOyqgoF9BA7GQzpsEpu2L0AAI3wTEb6_wYVsDmm7bD_FC7AQADAgADdwADNgQ.png)
+![image-20250301183926480](https://github.com/user-attachments/assets/7e8be9f8-efa2-4b7f-8429-9a4974c89b31)
+
 
 ### 任务编辑页（edit.html）
 
-![image-20250301183707849](https://djchan-xyz.pages.dev/file/AgACAgUAAyEGAASJIjr1AAIChmfC41tJdUTdt5uvGi1PxAxR2Ce1AAI1wTEb6_wYVtBNUuqQoP4PAQADAgADdwADNgQ.png)
+![image-20250301183707849](https://github.com/user-attachments/assets/0b32050e-dc01-40e5-af55-4ee804f3d2bd)
+
 
 
 
