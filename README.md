@@ -16,7 +16,7 @@ npm install
 在项目根目录下运行以下命令安装**后端依赖**：
 
 ```bash
-pip install flask flask-cors flask[async] tinydb shortuuid requests lxml pandas apscheduler playwright
+pip install flask flask-cors flask[async] tinydb shortuuid requests lxml pandas aiofiles aiohttp apscheduler playwright
 playwright install
 ```
 

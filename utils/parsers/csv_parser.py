@@ -18,27 +18,30 @@ class CSVParser(BaseParser):
         一行行添加到结果列表中
         """
         # 加载 CSV 内容
-        table = self.parse_to_table(self.url)
+        table = await self.parse_to_table(self.url)
         print("========正在解析csv文件============")
 
         if self.parseType == 0:  # 按列索引解析
-            return self.convert_to_dict_with_columns(table, self.columns, self.maxCount)
+            table = self.convert_to_dict_with_columns(table, self.columns, self.maxCount)
         elif self.parseType == 1:  # 如果是正则匹配类型，进行正则处理
-            return self.convert_to_dict_with_patterns(table, self.patterns, self.maxCount)
+            table = self.convert_to_dict_with_patterns(table, self.patterns, self.maxCount)
 
-        print("========解析csv文件完成，添加其他值...============")
+        print("========解析csv文件完成============")
         table = self.addOtherValues(table, self.content)
         return table
 
-    def parse_to_table(self, url):
+    async def parse_to_table(self, url):
         """加载并解析 CSV 文件，返回二维表格（列表）"""
-        self.load_content(url)
-        # 使用 pandas 读取 CSV 内容
-        df = pd.read_csv(StringIO(self.content))
-        # 将 DataFrame 转换为二维数组，并处理空值
-        table = df.fillna('').values.tolist()
-
-        return table
+        try:
+            await self.load_content(url)
+            # 使用 pandas 读取 CSV 内容
+            df = pd.read_csv(StringIO(self.content))
+            # 将 DataFrame 转换为二维数组，并处理空值
+            table = df.fillna('').values.tolist()
+            return table
+        except Exception as e:
+            print(f"Error parsing CSV file: {e}")
+            return []
 
     def convert_to_dict_with_columns(self, table, columns, maxCount=1000):
         """将二维数组转换为字典列表，使用 columns 来选择特定的列"""

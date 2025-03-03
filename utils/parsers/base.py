@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 import os
 import time
-import requests
+import aiohttp
+import aiofiles
 from utils.common import get_random_user_agent, match_one
 
 class BaseParser(ABC):
@@ -21,23 +22,22 @@ class BaseParser(ABC):
         self.other_rules = task['otherValues']
         self.content = None
 
-    def load_content(self, url):
-        """加载URL或本地文件内容"""
+    async def load_content(self, url):
         if url.startswith('file://'):
-            # 去掉 file:// 前缀，并将路径中的正斜杠替换为反斜杠
             file_path = url.replace('file://', '').replace('/', '\\')
             if os.path.isfile(file_path):
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    self.content = file.read()
+                async with aiofiles.open(file_path, 'r', encoding='utf-8') as file:
+                    self.content = await file.read()
                 print(f"已加载本地文件: {file_path}")
             else:
                 raise FileNotFoundError(f"本地文件不存在: {file_path}")
         else:
             headers = {'User-Agent': get_random_user_agent(), 'Cookie': self.cookies}
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()  # 检查请求是否成功
-            self.content = response.text
-            print(f"已加载URL: {url}")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as response:
+                    response.raise_for_status()
+                    self.content = await response.text()
+                print(f"已加载URL: {url}")
 
     @abstractmethod
     async def parse(self, maxCount=None, context=None):
@@ -54,6 +54,7 @@ class BaseParser(ABC):
 
     # 添加其他值
     def addOtherValues(self, data, html_content):
+        print("========添加其他值...============")
         specialValues = self.getSpecialValues()
         result = []
         memo = {}
