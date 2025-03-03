@@ -240,6 +240,13 @@ contextBridge.exposeInMainWorld('api', {
             }
         });
     },
+    openLocalFile: (filePath) => {
+        shell.openPath(filePath).then((error) => {
+            if (error) {
+                console.error('Failed to open file:', error);
+            }
+        });
+    },
     sendToRenderer: (channel, data) => ipcRenderer.send(channel, data),
     receiveFromMain: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args))
 })

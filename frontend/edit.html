@@ -40,7 +40,11 @@
 
             <el-form label-width="80px">
                 <el-form-item label="网址">
-                    <el-input v-model="currentTask.url" placeholder="请输入网址或本地文件路径，如: http://example.com 或 file://path/to/file"></el-input>
+                    <el-input v-model="currentTask.url" placeholder="请输入网址或本地文件路径，如: http://example.com 或 file://path/to/file">
+                        <template #append>
+                            <el-button icon="el-icon-search" @click="fetchUrl(currentTask.url)"></el-button>
+                        </template>
+                    </el-input>
                 </el-form-item>
                 <el-form label-width="80px">
                     <el-row :gutter="20">
@@ -491,6 +495,16 @@
             }
         },
         methods: {
+            fetchUrl(url) {
+                if (!url) return this.$message.warning('请输入有效的网址或本地文件路径');
+                if (url.startsWith('file://')) {
+                    window.api.openLocalFile(url.replace('file://', ''));
+                    return;
+                }
+                const urlPattern = /^(https?):\/\/[^\s/$.?#].[^\s]*$/i;
+                if (!urlPattern.test(url)) return this.$message.warning('输入的 URL 不合法，请输入有效的网址或本地文件路径');
+                window.open(url, '_blank');
+            },
             addSubtask(parentTask) {
                 // 第一层最多5个子任务
                 if (parentTask.children && parentTask.children.length >= 5) {
