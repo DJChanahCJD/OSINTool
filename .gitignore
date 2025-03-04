@@ -4,6 +4,6 @@ data/
 */__pycache__
 __pycache__
 script/
-log.txt
-app_fastapi.py
+api.log
 # db.json
+test_db.json

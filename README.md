@@ -16,7 +16,7 @@ npm install
 在项目根目录下运行以下命令安装**后端依赖**：
 
 ```bash
-pip install flask flask-cors flask[async] tinydb shortuuid requests lxml pandas aiofiles aiohttp apscheduler playwright
+pip install fastapi "uvicorn[standard]" tinydb shortuuid requests lxml pandas aiofiles aiohttp apscheduler fastapi uvicorn httpx playwright
 playwright install
 ```
 
@@ -40,7 +40,10 @@ npm start
 
 
 ## 技术栈
+基于**前后端分离**，构建 **Electron** **本地客户端**
+
 ### 前端
+
 - 页面构建：HTML/CSS/JS
 - 客户端开发：Electron
 - 组件库：ElementUI
@@ -77,6 +80,20 @@ npm start
 
 
 
+## 解析器流程图
+
+### TXTParser
+
+![image-20250303203737825](https://djchan-xyz.pages.dev/file/AgACAgUAAyEGAASJIjr1AAICiGfFoxi3bIdwvIiU94eog5ZbiCJeAAL1wzEb3fAwVtcmLMAcq5nmAQADAgADeQADNgQ.png)
+
+### CSVParser
+
+![image-20250303203803022](https://djchan-xyz.pages.dev/file/AgACAgUAAyEGAASJIjr1AAICiWfFoxqbPOEoQK6CWQAB1IGh73xkhAAC9sMxG93wMFaYhIPtx2weqQEAAwIAA3kAAzYE.png)
+
+### HTMLParser
+
+![image-20250303203818303](https://djchan-xyz.pages.dev/file/AgACAgUAAyEGAASJIjr1AAICimfFoxzLLYq7shI0c8LBIn8n1p5WAAL3wzEb3fAwVmpaMTByYxv2AQADAgADeQADNgQ.png)
+
 ## 预览图
 
 ### 任务列表页（index.html）
@@ -95,6 +112,8 @@ npm start
 - 处理OCR/滑动验证码等人机验证
 - CI/CD
 - 支持网页端部署
+
+
 
 ## SWOT分析
 

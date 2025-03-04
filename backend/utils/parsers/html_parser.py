@@ -9,6 +9,9 @@ import asyncio
 
 from .base import BaseParser
 
+# 检验正则匹配的网站
+# https://regex101.com/
+
 class HTMLParser(BaseParser):
     def __init__(self, task):
         super().__init__(task)
@@ -160,44 +163,45 @@ class HTMLParser(BaseParser):
         if maxCount > 0:
             self.maxCount = maxCount
 
-        async with async_playwright() as p:
-            isMainTask = context is None
-            if isMainTask:
-                self.browser = await p.chromium.launch(headless=self.headless)  # 打开浏览器
-                context = await self.browser.new_context(extra_http_headers={'User-Agent': self.USER_AGENT})
+        # 如果没有提供 context，创建新的 playwright 实例
+        if context is None:
+            async with async_playwright() as p:
+                self.browser = await p.chromium.launch(headless=self.headless)
+                context = await self.browser.new_context(
+                    extra_http_headers={'User-Agent': self.USER_AGENT}
+                )
+                try:
+                    result = await self._do_parse(context)
+                    return result
+                finally:
+                    await self.browser.close()
+        else:
+            # 如果提供了 context，直接使用它
+            return await self._do_parse(context)
 
-            if self.cookie_list:
-                await context.add_cookies(self.cookie_list)
-            page = await context.new_page()
+    async def _do_parse(self, context):
+        if self.cookie_list:
+            await context.add_cookies(self.cookie_list)
 
+        page = await context.new_page()
+        try:
             print("等待页面加载...")
             await page.goto(self.url, wait_until="domcontentloaded")
             await asyncio.sleep(3)  # 等待页面加载完成
 
-            # print("滚动到表格底部...")
-            # await page.evaluate(f"""
-            #     const table = document.evaluate('{self.table_xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-            #     if (table) table.scrollIntoView();
-            # """)
-
             await self._perform_actions(page)
-
             all_results = await self._parse_pages(page)
 
-            if isMainTask:
-                print("关闭浏览器...")
-                await context.close()
-                await self.browser.close()
+            # 添加其他值
+            print("添加其他值...")
+            all_results = self.addOtherValues(all_results, html_content=self.content)
 
-         # 添加其他值
-        print("添加其他值...")
-        all_results = self.addOtherValues(all_results, html_content=self.content)
+            print(f"解析完成，总数据量: {len(all_results)}")
+            print(f"首个数据: {all_results[0]}")
 
-        print(f"======是否为主任务：{isMainTask}，解析完成=======")
-        print(f"总数据量: {len(all_results)}")
-        print(f"首个数据: {all_results[0]}")
-
-        return all_results
+            return all_results
+        finally:
+            await page.close()
 
     async def parse_table_with_patterns(self, html_content, task=None):
         tree = html.fromstring(html_content)

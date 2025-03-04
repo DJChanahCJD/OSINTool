@@ -151,7 +151,7 @@ contextBridge.exposeInMainWorld('api', {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ taskIds })
+            body: JSON.stringify(taskIds)
         });
         const data = await response.json();
 

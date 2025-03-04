@@ -655,7 +655,7 @@
                     this.currentEditParent.children.push(newSubtask);
                 }
                 this.$message.success("子任务已保存")
-                console.log("保存成功", this.currentTask.children);
+                console.log(this.currentTask.children);
                 this.editSubtaskDialogVisible = false;
             },
             validateSubtask(subtask) {
@@ -954,11 +954,11 @@
 
                     if (this.currentTask.id) {
                         const response = await window.api.updateTask(this.currentTask.id, this.currentTask);
-                        this.$message.success('保存成功: ' + JSON.stringify(response));
+                        this.$message.success('保存成功');
                     } else {
                         const result = await window.api.createTask(this.currentTask);
                         this.currentTask.id = result.id;
-                        this.$message.success('创建成功' + JSON.stringify(result) + '，请保存ID');
+                        this.$message.success('创建成功');
                     }
                     await this.loadTasks();
                 } catch (error) {
