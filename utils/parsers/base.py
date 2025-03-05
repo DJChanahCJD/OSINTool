@@ -3,7 +3,6 @@ from datetime import datetime
 import os
 import time
 import aiohttp
-import aiofiles
 from utils.common import get_random_user_agent, match_one
 
 class BaseParser(ABC):
@@ -23,21 +22,12 @@ class BaseParser(ABC):
         self.content = None
 
     async def load_content(self, url):
-        if url.startswith('file://'):
-            file_path = url.replace('file://', '').replace('/', '\\')
-            if os.path.isfile(file_path):
-                async with aiofiles.open(file_path, 'r', encoding='utf-8') as file:
-                    self.content = await file.read()
-                print(f"已加载本地文件: {file_path}")
-            else:
-                raise FileNotFoundError(f"本地文件不存在: {file_path}")
-        else:
-            headers = {'User-Agent': get_random_user_agent(), 'Cookie': self.cookies}
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers) as response:
-                    response.raise_for_status()
-                    self.content = await response.text()
-                print(f"已加载URL: {url}")
+        headers = {'User-Agent': get_random_user_agent(), 'Cookie': self.cookies}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                self.content = await response.text()
+            print(f"已加载URL: {url}")
 
     @abstractmethod
     async def parse(self, maxCount=None, context=None):

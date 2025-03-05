@@ -16,7 +16,7 @@ npm install
 在项目根目录下运行以下命令安装**后端依赖**：
 
 ```bash
-pip install fastapi "uvicorn[standard]" tinydb shortuuid requests lxml pandas aiofiles aiohttp apscheduler fastapi uvicorn httpx playwright
+pip install fastapi "uvicorn[standard]" tinydb shortuuid requests lxml pandas aiohttp apscheduler fastapi uvicorn httpx playwright
 playwright install
 ```
 

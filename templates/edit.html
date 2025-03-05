@@ -38,7 +38,7 @@
 
             <el-form label-width="80px">
                 <el-form-item label="网址">
-                    <el-input v-model="currentTask.url" placeholder="请输入网址或本地文件路径，如: http://example.com 或 file://path/to/file">
+                    <el-input v-model="currentTask.url" placeholder="请输入网址，如: http://example.com">
                         <template #append>
                             <el-button icon="el-icon-search" @click="fetchUrl(currentTask.url)"></el-button>
                         </template>
@@ -961,8 +961,8 @@
             validateData() {
                 const showWarning = (msg) => (this.$message.warning(msg), false);
                 if (!this.currentTask.title.trim()) return showWarning('请输入任务名称');
-                const isValidUrl = /^https?:\/\/.+/i.test(this.currentTask.url) || /file:\/\/.+/i.test(this.currentTask.url);
-                if (!this.currentTask.url.trim() ||!isValidUrl) return showWarning('请输入合法目标URL, 如: http://example.com 或 file:///path/to/file');
+                const isValidUrl = /^https?:\/\/.+/i.test(this.currentTask.url);
+                if (!this.currentTask.url.trim() ||!isValidUrl) return showWarning('请输入合法目标URL, 如: http://example.com');
                 if (!this.currentTask.dataFormat) return showWarning('请选择数据格式');
                 if (this.currentTask.dataFormat!== 'html' && this.table_pattern &&!this.table_pattern.trim()) {
                   try { new RegExp(this.table_pattern); } catch (e) { return showWarning('表格正则匹配不合法，请先在https://regex101.com/ 验证是否匹配'); }
