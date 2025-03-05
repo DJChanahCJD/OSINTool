@@ -1,0 +1,13 @@
+[Unit]
+Description=OSINTool
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/osintool
+ExecStart=/root/osintool/venv/bin/python /root/osintool/app.py
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

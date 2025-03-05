@@ -311,7 +311,7 @@
                     });
 
                     const taskIds = this.selectedTasks.map(task => task.id);
-                    const response = apiCall(taskIds);
+                    const response = await apiCall(taskIds);
                     await this.loadTasks();
                     this.selectedTasks = [];
                     this.$message.success({
@@ -365,8 +365,20 @@
                 }
                 try {
                     const taskIds = this.selectedTasks.map(task => task.id);
-                    const isOk = await window.api.exportTasks(taskIds) || false;
-                    if (isOk) this.$message.success({ message: '导出成功', duration: 2000});
+                    const response = await window.api.exportTasks(taskIds);
+                    console.log("response：", response)
+                    // 触发文件下载
+                    const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    a.href = url;
+                    a.download = `${this.selectedTasks[0].title}_${timestamp}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    this.$message.success({ message: '导出成功', duration: 2000});
                 } catch (error) {
                     this.$message.error({ message: `导出失败：${error}`, duration: 3000});
                 }

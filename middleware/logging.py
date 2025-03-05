@@ -5,7 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Callable
 from datetime import datetime
 
-log_file = "../api.log"
+log_file = "api.log"
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: FastAPI, logger: logging.Logger):

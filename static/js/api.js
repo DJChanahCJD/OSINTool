@@ -57,12 +57,11 @@ const api = {
     },
 
     updateTaskStatus: (taskId, isActive) => {
-        return fetch(`${baseURL}/tasks/${taskId}/status`, {
+        return fetch(`${baseURL}/tasks/${taskId}/status?isActive=${isActive}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ isActive })
         }).then(response => response.json())
     },
 
@@ -86,7 +85,7 @@ const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ taskIds })
+            body: JSON.stringify( { taskIds: taskIds } )
         }).then(response => response.json())
     },
     // 批量运行
@@ -96,7 +95,7 @@ const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ taskIds })
+            body: JSON.stringify( { taskIds: taskIds } )
         }).then(response => response.json())
     },
     // 批量停止
@@ -106,7 +105,7 @@ const api = {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ taskIds })
+            body: JSON.stringify( { taskIds: taskIds } )
         }).then(response => response.json())
     },
     // 导入
@@ -122,77 +121,19 @@ const api = {
     // 修改导出任务方法
     exportTasks: async (taskIds) => {
         try {
-            const response = await fetch(`${baseURL}/tasks/export?${new URLSearchParams({task_ids: taskIds})}`);
+            const response = await fetch(`${baseURL}/tasks/batch_export`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify( { taskIds: taskIds } )
+            });
             if (!response.ok) throw new Error('导出失败');
 
-            // 触发文件下载
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = response.headers.get('content-disposition').split('filename=')[1];
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            return true;
+            return response.json();
         } catch (error) {
             console.error('导出失败:', error);
             return false;
-        }
-    },
-    // 修改脚本上传方法
-    uploadScript: async (id, file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const response = await fetch(`${baseURL}/tasks/${id}/upload-script`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) throw new Error('上传失败');
-            return true;
-        } catch (error) {
-            console.error('上传失败:', error);
-            return false;
-        }
-    },
-    // 检查脚本是否存在
-    checkScriptExists: (taskId) => {
-        const scriptDir = path.join(rootPath, 'script');
-        const scriptPath = path.join(scriptDir, `${taskId}.py`);
-        return fs.existsSync(scriptPath);
-    },
-    openScriptFile: (id) => {
-        const scriptDir = path.join(rootPath, 'script');
-        const scriptPath = path.join(scriptDir, `${id}.py`);
-        shell.openPath(scriptPath).then((error) => {
-            if (error) {
-                console.error('Failed to open script file:', error);
-            }
-        });
-    },
-    openLocalFile: (filePath) => {
-        shell.openPath(filePath).then((error) => {
-            if (error) {
-                console.error('Failed to open file:', error);
-            }
-        });
-    },
-    sendToRenderer: (channel, data) => ipcRenderer.send(channel, data),
-    receiveFromMain: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args)),
-    // 获取任务结果列表
-    getTaskResults: async (taskId) => {
-        try {
-            const response = await fetch(`${baseURL}/tasks/${taskId}/results`);
-            if (!response.ok) throw new Error('获取结果失败');
-            return await response.json();
-        } catch (error) {
-            console.error('获取结果失败:', error);
-            throw error;
         }
     },
     // 下载结果文件

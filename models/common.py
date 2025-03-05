@@ -16,3 +16,6 @@ class PaginatedResponse(BaseModel):
     perPage: int
     total: int
     data: List[Dict[str, Any]]
+
+class TaskIds(BaseModel):
+    taskIds: List[str]

@@ -9,14 +9,13 @@ import json
 from datetime import datetime
 import os
 import shortuuid
+from models.common import TaskIds
 from utils.parser_factory import ParserFactory
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from models import PaginatedResponse, Task
 from middleware import setup_cors_middleware, RequestLoggingMiddleware
 from middleware.logging import setup_logger
 import pathlib
-import asyncio
-from asyncio.windows_events import ProactorEventLoop
 from uvicorn import Config, Server
 
 root_dir = pathlib.Path(__file__) # 获取项目根目录
@@ -35,13 +34,11 @@ async def lifespan(app: FastAPI):
     init_scheduler()
     scheduler.start()
 
-
     yield   # FastAPI 应用运行期间
 
     # 关闭时运行
     print("正在关闭调度器")
     scheduler.shutdown()
-
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
@@ -199,25 +196,24 @@ def delete_task(task_id: str):
 
 # 批量删除
 @app.delete('/api/tasks/batch_delete')
-def delete_tasks(taskIds: List[str]):
+def delete_tasks(taskIds: TaskIds):
     try:
-        ids = taskIds
+        ids = taskIds.taskIds
         tasks_table.remove(TinyDBQuery().id.one_of(ids))
         for task_id in ids:
             if scheduler.get_job(task_id):
                 scheduler.remove_job(task_id)
-        return {"success": True}
+        return {"success": True, "msg": f"批量删除任务成功"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量删除任务失败: {e}")
 
 
-@app.put('/api/tasks/{task_id}/status', response_model=Task)
-async def update_task_status(task_id: str, task: Task):
+@app.put('/api/tasks/{task_id}/status')
+async def update_task_status(task_id: str, isActive: bool):
     try:
-        isActive = task.isActive
         await update_task_status_func(task_id, isActive)
         print(f"更新任务状态成功, ID: {task_id}, 运行中: {isActive}")
-        return task
+        return {"success": True, "msg": f"运行中: {isActive}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"更新任务状态失败: {e}")
 
@@ -290,37 +286,37 @@ async def run_task(task_id: str):
 
 #批量启动
 @app.post('/api/tasks/batch_start')
-def batch_start_tasks(taskIds: List[str]):
+async def batch_start_tasks(taskIds: TaskIds):
     try:
-        task_ids = taskIds
+        task_ids = taskIds.taskIds
         for task_id in task_ids:
-            update_task_status_func(task_id, True)
+            await update_task_status_func(task_id, True)
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量启动任务失败: {e}")
 
 #批量停止
 @app.post('/api/tasks/batch_stop')
-def batch_stop_tasks(taskIds: List[str]):
+async def batch_stop_tasks(taskIds: TaskIds):
     try:
-        task_ids = taskIds
+        task_ids = taskIds.taskIds
         for task_id in task_ids:
-            update_task_status_func(task_id, False)
+            await update_task_status_func(task_id, False)
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量停止任务失败: {e}")
 
 # 批量导出
 @app.post('/api/tasks/batch_export')
-def batch_export_tasks(taskIds: List[str]):
+def batch_export_tasks(taskIds: TaskIds):
     try:
-        task_ids = taskIds
+        task_ids = taskIds.taskIds
         if not task_ids:
             raise HTTPException(status_code=400, detail="未提供任务ID")
 
         Task = TinyDBQuery()
         tasks = tasks_table.search(Task.id.one_of(task_ids))
-        return {"success": True, "tasks": tasks}
+        return {"success": True, "data": tasks}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量导出任务失败: {e}")
 
@@ -408,24 +404,14 @@ def init_scheduler():
             schedule_task(task)
 
 if __name__ == '__main__':
-    # 创建自定义的 ProactorServer
-    class ProactorServer(Server):
-        def run(self, sockets=None):
-            # 使用 ProactorEventLoop
-            loop = ProactorEventLoop()
-            asyncio.set_event_loop(loop)
-            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-            # 运行服务器
-            asyncio.run(self.serve(sockets=sockets))
-
     # 配置服务器
     config = Config(
         app=app,
-        host="127.0.0.1",
-        port=8080,
+        host="0.0.0.0",
+        port=8081,
         reload=False,
         workers=1
     )
-    # 使用自定义的 ProactorServer
-    server = ProactorServer(config=config)
+    # 使用 uvicorn 的 Server
+    server = Server(config=config)
     server.run()

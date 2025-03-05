@@ -1,84 +1,101 @@
 ## 项目概述
-OSINTool 是一个自动化爬虫客户端，包含一个Flask后端和一个Electron客户端，用于执行和管理爬虫任务。
-
+OSINTool-Web-Linux 是一个自动化爬虫网页，适用于Linux服务器
 
 
 ## 快速开始
 
 ### 安装依赖
 
-在`frontend`目录下运行以下命令安装**前端依赖**：
+在项目根目录下运行以下命令安装依赖：
 
 ```bash
-npm install
-```
-
-在项目根目录下运行以下命令安装**后端依赖**：
-
-```bash
-pip install fastapi "uvicorn[standard]" tinydb shortuuid requests lxml pandas aiohttp apscheduler fastapi uvicorn httpx playwright
-playwright install
+pip3 install -r requirements.txt
 ```
 
 ### 启动前后端
 
-在`根目录`启动**Flask后端**：
+在`根目录`启动：
 
 ```bash
 python app.py
 ```
 
-在`frontend`目录启动**Electron客户端**：
-
-
-```bash
-npm start
-```
-
-> 请确保已经安装了 Playwright 所需的浏览器和驱动，可通过 `playwright install` 命令进行安装。
-
-
-
 ## 技术栈
-基于**前后端分离**，构建 **Electron** **本地客户端**
-
-### 前端
-
-- 页面构建：HTML/CSS/JS
-- 客户端开发：Electron
-- 组件库：ElementUI
-
-### 后端
-- 本地服务器：Flask
+- 本地服务器：FastAPI(venv Python 3.11)
 - 数据爬取：Playwirght, Requests
 - 定时任务：APSchedule
 - 数据库：TinyDB
-
-
+- 页面构建：Vue2 + ElementUI
 
 ## 项目结构
 
 ```
-├── frontend
-│   ├── edit.html 	 		# 编辑页
-│   ├── index.html  			# 列表页
-│   ├── main.js 			# Electron主进程
-│   ├── package.json
-│   ├── preload.js  			# 预加载脚本（含API）
-├── utils
-│   ├── parsers  			# 解析器
-│   │   ├── base.py
-│   │   ├── csv_parser.py
-│   │   ├── html_parser.py
-│   │   └── txt_parser.py
-│   ├── common.py  			# 通用函数
-│   ├── logger.py  			# 日志模块
-│   ├── parser_factory.py  	        # 解析器工厂
-├── app.py  				# Flask后端（含API）
-├── db.json  				# TinyDB数据库
+OSINTOOL
+├── app.py                   # FastAPI 后端（含 API）
+├── db.json                  # TinyDB 数据库
+├── osintool.service         # systemd 服务文件
+├── requirements.txt         # Python 依赖文件
+├── middleware               # 中间件
+│   ├── __init__.py
+│   ├── cors.py
+│   └── logging.py
+├── models                   # 数据模型
+├── static                   # 静态文件
+│   ├── js
+│   │   └── api.js
+│   └── styles
+│       ├── edit.css
+│       └── index.css
+├── templates                # HTML 模板
+│   ├── edit.html
+│   └── index.html
+└── utils                    # 工具模块
+    ├── parsers              # 解析器
+    │   ├── base.py
+    │   ├── csv_parser.py
+    │   ├── html_parser.py
+    │   └── txt_parser.py
+    ├── common.py            # 通用函数
+    └── parser_factory.py    # 解析器工厂
 ```
 
+## 部署相关
 
+若您期望应用在 Linux 服务器启动时自动运行，可创建一个 systemd 服务。
+
+### 步骤如下：
+1. 创建服务文件 `/etc/systemd/system/osintool.service`，内容如下：
+```ini
+[Unit]
+Description=OSINTool
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/osintool
+ExecStart=/root/osintool/venv/bin/python /root/osintool/app.py  # 请将此处修改为 python 和 app.py 的实际位置
+Restart=always
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+2. 启用服务：
+```bash
+sudo systemctl enable myapp.service
+```
+3. 启动服务：
+```bash
+sudo systemctl start myapp.service
+```
+4. 重启服务：
+```bash
+sudo systemctl restart myapp.service
+```
+5. 查看服务状态：
+```bash
+sudo systemctl status myapp.service
+```
 
 ## 解析器流程图
 
@@ -103,7 +120,6 @@ npm start
 ### 任务编辑页（edit.html）
 
 ![image-20250301183707849](https://djchan-xyz.pages.dev/file/AgACAgUAAyEGAASJIjr1AAIChmfC41tJdUTdt5uvGi1PxAxR2Ce1AAI1wTEb6_wYVtBNUuqQoP4PAQADAgADdwADNgQ.png)
-
 
 
 ## Todo
