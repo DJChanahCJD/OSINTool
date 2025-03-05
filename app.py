@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 import random
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from tinydb import TinyDB, Query as TinyDBQuery
 import json
 from datetime import datetime
@@ -17,8 +19,8 @@ import asyncio
 from asyncio.windows_events import ProactorEventLoop
 from uvicorn import Config, Server
 
-root_dir = pathlib.Path(__file__).parent.parent # 获取项目根目录
-DB_PATH = os.getenv('DB_PATH', '../db.json')
+root_dir = pathlib.Path(__file__) # 获取项目根目录
+DB_PATH = os.getenv('DB_PATH', 'db.json')
 
 # 先初始化logger
 logger = setup_logger()
@@ -27,27 +29,47 @@ logger = setup_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时运行
-    print("正在初始化调度器...")
+    print("正在初始化调度器")
+
+    # 初始化调度器
     init_scheduler()
     scheduler.start()
+
 
     yield   # FastAPI 应用运行期间
 
     # 关闭时运行
-    print("正在关闭调度器...")
+    print("正在关闭调度器")
     scheduler.shutdown()
+
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
     title="任务管理系统",
     description="任务调度和管理API",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redoc_url=None
 )
 
 # app创建后才能添加中间件
 app.add_middleware(RequestLoggingMiddleware, logger=logger)
 setup_cors_middleware(app)
+
+# 挂载静态文件
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 设置模板
+templates = Jinja2Templates(directory="templates")
+
+# 添加页面路由
+@app.get("/")
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/edit")
+async def edit(request: Request):
+    return templates.TemplateResponse("edit.html", {"request": request})
 
 # 初始化 TinyDB
 db = TinyDB(DB_PATH)
@@ -214,12 +236,6 @@ async def update_task_status_func(task_id, isActive):
             if scheduler.get_job(task_id):
                 scheduler.remove_job(task_id)
 
-# 获取运行中的任务
-# def get_running_tasks():
-#     jobs = scheduler.get_jobs()
-#     running_tasks = [{'id': job.id, 'next_run_time': job.next_run_time } for job in jobs]
-#     return jsonify({'success': True, 'running_tasks': running_tasks})
-
 @app.post('/api/tasks/{task_id}/parse')
 async def parse_task(task_id: str):    # 预览
     Task = TinyDBQuery()
@@ -248,33 +264,16 @@ async def run_task(task_id: str):
     print(f'===========正在运行任务: {task_id}============')
 
     if task['crawlMode'] == 'pro':  # 专家模式
-        # 找到根目录/script/{id}.py
-        script_path = os.path.join(root_dir, 'script', f'{task_id}.py')
-        if not os.path.exists(script_path):
-            raise HTTPException(status_code=404, detail="脚本文件不存在")
-        os.system(f'python {script_path}')  # 运行脚本
-        return {"success": True}
+        return {"success": False, "message": "网页版暂无专家模式"}
 
     # 普通模式(task['crawlMode'] == 'general')
-
-    os.makedirs(os.path.join(root_dir, 'data'), exist_ok=True)
 
     max_count = task['maxCount']  # 获取最大数据量
     try:
         result = await execute_task_parsing(task, max_count)
 
-        # 保存结果
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        formatted_time = current_time.replace(' ', '_').replace(':', '.')
-        filename = f'{formatted_time}.json'
-        output_dir = os.path.join(root_dir, 'data', str(task_id))
-        os.makedirs(output_dir, exist_ok=True)
-        filepath = os.path.join(output_dir, filename)
-
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
-
         # 更新任务的 lastRunTime
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         Task = TinyDBQuery()
         tasks_table.update({'lastRunTime': current_time}, Task.id == task_id)
 
@@ -283,8 +282,8 @@ async def run_task(task_id: str):
             'task': {
                 'id': task['id'],
                 'lastRunTime': current_time,
-                'resultFile': filename
-            }
+            },
+            'data': result  # 直接返回解析结果
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"任务运行失败: {e}")
@@ -412,20 +411,21 @@ if __name__ == '__main__':
     # 创建自定义的 ProactorServer
     class ProactorServer(Server):
         def run(self, sockets=None):
-            # Playwright 需要创建子进程来控制浏览器，因此需要 ProactorEventLoop
+            # 使用 ProactorEventLoop
             loop = ProactorEventLoop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.serve(sockets=sockets))
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            # 运行服务器
+            asyncio.run(self.serve(sockets=sockets))
 
     # 配置服务器
     config = Config(
         app=app,
-        host="0.0.0.0",
-        port=5001,
-        reload=True,
-        workers=1, # 生产环境可设置为(multiprocessing.cpu_count() * 2) + 1
+        host="127.0.0.1",
+        port=8080,
+        reload=False,
+        workers=1
     )
-
     # 使用自定义的 ProactorServer
     server = ProactorServer(config=config)
     server.run()

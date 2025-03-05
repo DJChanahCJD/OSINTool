@@ -44,3 +44,13 @@ def match_one(content, keyword):
     if match:
         match = re.sub(r'<.*?>', '', match.group(1))
     return match
+
+def clean_text(text):
+    """清理文本，移除多余空白字符"""
+    # 1. 去除 HTML 标签
+    text = re.sub(r'<[^>]*>', '', text)
+    # 2. 替换连续的空白字符（包括空格、制表符、换行符等）为单个空格
+    text = re.sub(r'\s+', ' ', text)
+    # 3. 去除首尾空白
+    text = text.strip()
+    return text

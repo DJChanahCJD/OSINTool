@@ -4,14 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSINTool</title>
-    <link rel="stylesheet" href="./styles/index.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='styles/index.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
     <style>[v-cloak] { display: none !important;}</style>
-    <!-- 预加载另一个页面 -->
-    <link rel="preload" href="index.html">
-    <link rel="preload" href="edit.html">
 </head>
 <body>
+    {% raw %}
     <div id="app" v-cloak>
         <div v-if="!pageReady" class="page-loading">
             <i class="el-icon-loading"></i>
@@ -171,15 +169,6 @@
                                             @click="deleteTask(scope.row)">
                                         </el-button>
                                     </el-tooltip>
-                                    <el-tooltip content="爬取结果" placement="top">
-                                        <el-button
-                                            size="mini"
-                                            type="warning"
-                                            plain
-                                            icon="el-icon-folder-opened"
-                                            @click="getResult(scope.row)">
-                                        </el-button>
-                                    </el-tooltip>
                                 </div>
                             </template>
                         </el-table-column>
@@ -211,13 +200,42 @@
                         </span>
                     </div>
                 </div>
+
+                <!-- 添加结果查看对话框 -->
+                <el-dialog title="任务结果" :visible.sync="resultDialogVisible" width="600px">
+                    <div v-loading="resultLoading">
+                        <template v-if="resultFiles.length > 0">
+                            <el-table :data="resultFiles" style="width: 100%">
+                                <el-table-column prop="name" label="文件名"></el-table-column>
+                                <el-table-column prop="created" label="创建时间"></el-table-column>
+                                <el-table-column label="操作" width="100">
+                                    <template slot-scope="scope">
+                                        <el-button
+                                            type="text"
+                                            @click="downloadResult(scope.row.name)">
+                                            下载
+                                        </el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </template>
+                        <template v-else>
+                            <div class="empty-data">
+                                <p>暂无结果文件</p>
+                            </div>
+                        </template>
+                    </div>
+                </el-dialog>
             </div>
         </transition>
     </div>
+    {% endraw %}
 </body>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+<script src="{{ url_for('static', path='js/api.js') }}"></script>
+{% raw %}
 <script>
     new Vue({
         el: '#app',
@@ -244,6 +262,10 @@
             selectedTasks: [],  // 任务多选，用于批量操作
             importDialogVisible: false,
             importJson: '',
+            resultDialogVisible: false,
+            resultLoading: false,
+            resultFiles: [],
+            currentTaskId: null
         },
         computed: {
             getFilters() {
@@ -428,12 +450,12 @@
             createTask() {
                 // 清除本地存储的任务ID
                 localStorage.removeItem('currentTaskId');
-                window.location.href = 'edit.html';
+                window.location.href = 'edit';
             },
             editTask(task) {
                 // 存储要编辑的任务ID
                 localStorage.setItem('currentTaskId', JSON.stringify(task.id));
-                window.location.href = `edit.html?id=${task.id}`;
+                window.location.href = `edit?id=${task.id}`;
             },
             async toggleTaskStatus(task) {
                 try {
@@ -475,24 +497,9 @@
                     }
                 }
             },
-            async getResult(task) {
-                try {
-                    if (!task.id) {
-                        this.$message.warning('请先选择任务');
-                        return;
-                    }
-                    await window.api.openTaskResultFolder(task.id);
-                } catch (error) {
-                    this.$message.error({
-                        message: '打开文件夹失败',
-                        duration: 3000
-                    });
-                }
-            }
         },
         async mounted() {
             try {
-                // 从本地存储中获取参数（简单状态存储，就不做多窗口了）
                 const storedParams = localStorage.getItem('params');
                 if (storedParams) {
                     const params = JSON.parse(storedParams);
@@ -519,4 +526,5 @@
         localStorage.removeItem('params');  // 退出时清除本地存储的参数
     });
 </script>
+{% endraw %}
 </html>

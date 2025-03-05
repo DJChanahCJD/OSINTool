@@ -2,7 +2,7 @@ import random
 import traceback
 from playwright.async_api import async_playwright
 from lxml import html
-from utils.common import get_random_user_agent
+from utils.common import get_random_user_agent, clean_text
 from urllib.parse import urljoin
 import re
 import asyncio
@@ -68,7 +68,7 @@ class HTMLParser(BaseParser):
         try:
             if await element.is_visible() and not await element.is_disabled():
                 await element.click()
-                await asyncio.sleep(random.uniform(1, 3))  # 等待动作执行完成
+                await asyncio.sleep(3)  # 等待动作执行完成
         except Exception as e:
             print(f"点击动作失败: {str(e)}")
 
@@ -77,7 +77,7 @@ class HTMLParser(BaseParser):
             if element and await element.is_visible() and not await element.is_disabled():
                 print(f"执行输入动作: {target}")
                 await element.fill(target)
-                await asyncio.sleep(random.uniform(1, 3))  # 等待动作执行完成
+                await asyncio.sleep(3)  # 等待动作执行完成
         except Exception as e:
             print(f"输入动作失败: {str(e)}")
 
@@ -110,7 +110,7 @@ class HTMLParser(BaseParser):
             if await next_page.is_visible() and not await next_page.is_disabled():
                 print("点击下一页...")
                 await next_page.click()
-                await asyncio.sleep(random.uniform(1, 3))
+                await asyncio.sleep(3)
                 await page.wait_for_selector(f'xpath={self.table_xpath}')
                 return True
             else:
@@ -186,7 +186,7 @@ class HTMLParser(BaseParser):
         page = await context.new_page()
         try:
             print("等待页面加载...")
-            await page.goto(self.url, wait_until="domcontentloaded")
+            await page.goto(self.url)
             await asyncio.sleep(3)  # 等待页面加载完成
 
             await self._perform_actions(page)
@@ -252,8 +252,7 @@ class HTMLParser(BaseParser):
                                     row_data[field] = ""
                                 if match.group(i):
                                     # 去除HTML标签
-                                    clean_text = re.sub(r'<[^>]*>', '', match.group(i))
-                                    row_data[field] += clean_text.strip()
+                                    row_data[field] += clean_text(match.group(i))
                                 else:
                                     row_data[field] = ""
                         else:
@@ -261,8 +260,7 @@ class HTMLParser(BaseParser):
                                 row_data[field] = ""
                             if match.group(1):
                                 # 去除匹配结果中的 HTML 标签
-                                clean_text = re.sub(r'<[^>]*>', '', match.group(1))
-                                row_data[field] += clean_text.strip()
+                                row_data[field] += clean_text(match.group(1))
 
                 if row_data:
                     data.append(row_data)
