@@ -22,7 +22,7 @@ class HTMLParser(BaseParser):
         self.rows_xpath = xpaths.get('row', '')
         self.next_page_xpath = xpaths.get('next_page', '')
         self.cookie_list = self._parse_cookies()
-        self.headless = False  # True表示不显示浏览器窗口
+        self.headless = True  # True表示不显示浏览器窗口，若希望设为False，部署到服务器上需要额外处理
         self.browser = None
         self.USER_AGENT = get_random_user_agent()
 
@@ -166,9 +166,25 @@ class HTMLParser(BaseParser):
         # 如果没有提供 context，创建新的 playwright 实例
         if context is None:
             async with async_playwright() as p:
-                self.browser = await p.chromium.launch(headless=self.headless)
+                self.browser = await p.chromium.launch(
+                    headless=self.headless,
+                    args=[
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--disable-gpu',
+                        '--disable-notifications',
+                        '--disable-extensions',
+                        '--disable-geolocation',
+                        '--disable-media-session-api',
+                        '--disable-permissions-api',
+                        '--disable-speech-api',
+                        '--disable-web-security'
+                    ])
                 context = await self.browser.new_context(
-                    extra_http_headers={'User-Agent': self.USER_AGENT}
+                    extra_http_headers={'User-Agent': self.USER_AGENT},
+                    permissions=[]
                 )
                 try:
                     result = await self._do_parse(context)

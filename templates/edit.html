@@ -676,18 +676,6 @@
                     }
                 }
             },
-            async checkScriptFile() {
-                if (!this.currentTask.id) return;
-                try {
-                    const exists = await window.api.checkScriptExists(this.currentTask.id);
-                    this.isScriptExists = exists;
-                } catch (error) {
-                    console.error('Error checking script existence:', error);
-                }
-            },
-            openScriptFile() {
-                window.api.openScriptFile(this.currentTask.id);
-            },
             // 判断当前任务数据是否已被修改
             isTaskChanged() {
                 return JSON.stringify(this.currentTask) !== JSON.stringify(this.originalTask);
@@ -695,43 +683,6 @@
             backToList() {
                 window.location.href = '/';
             },
-            beforeScriptFileUpload(file) {
-                if (this.currentTask.id == null) {
-                    this.$message.warning('请先选择任务');
-                    return false;
-                }
-                if (this.currentTask.crawlMode !== 'pro') {
-                    this.$message.warning('非专家模式无法上传脚本');
-                    return false;
-                }
-                // 检查文件类型
-                const allowedTypes = ['py'];
-                const fileExtension = file.name.split('.').pop().toLowerCase();
-                if (!allowedTypes.includes(fileExtension)) {
-                    this.$message.error('请上传.py文件');
-                    return false;
-                }
-                return true;
-            },
-            handleScriptFileChange: _.debounce(async function(file) {
-                if (!file) return;
-                if (this.currentTask.id == null) {
-                    this.$message.warning('请先保存任务');
-                    return;
-                }
-                try {
-                    const isOk = await window.api.uploadScript(this.currentTask.id, file);
-                    if (isOk) {
-                        this.isFileUploaded = true;
-                        this.$message.success('脚本上传成功');
-                        await this.checkScriptFile();
-                    } else {
-                        this.$message.error('脚本上传失败');
-                    }
-                } catch (error) {
-                    this.$message.error('上传过程中发生错误：' + error.message);
-                }
-            }, 300),    // 300毫秒内只执行一次，防止多次上传
             async loadTasks() {
                 try {
                     this.tasks = await window.api.getTasksBasic();
@@ -756,7 +707,7 @@
                         await this.checkScriptFile();
                     }
                 } catch (error) {
-                    this.$message.error('加载失败');
+                    console.error('加载失败:', error);
                     localStorage.removeItem('currentTaskId');
                 }
             },

@@ -10,6 +10,7 @@ OSINTool-Web-Linux 是一个自动化爬虫网页，适用于Linux服务器
 
 ```bash
 pip3 install -r requirements.txt
+playwright install
 ```
 
 ### 启动前后端
@@ -64,6 +65,7 @@ OSINTOOL
 若您期望应用在 Linux 服务器启动时自动运行，可创建一个 systemd 服务。
 
 ### 步骤如下：
+> 修改前记得启用虚拟环境：`source venv/bin/activate`
 1. 创建服务文件 `/etc/systemd/system/osintool.service`，内容如下：
 ```ini
 [Unit]
@@ -82,19 +84,19 @@ WantedBy=multi-user.target
 ```
 2. 启用服务：
 ```bash
-sudo systemctl enable myapp.service
+sudo systemctl enable osintool.service
 ```
 3. 启动服务：
 ```bash
-sudo systemctl start myapp.service
+sudo systemctl start osintool.service
 ```
 4. 重启服务：
 ```bash
-sudo systemctl restart myapp.service
+sudo systemctl restart osintool.service
 ```
 5. 查看服务状态：
 ```bash
-sudo systemctl status myapp.service
+sudo systemctl status osintool.service
 ```
 
 ## 解析器流程图

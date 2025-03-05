@@ -533,10 +533,6 @@
             }
         }
     });
-    window.api.receiveFromMain('quit', () => {
-        console.log('quit')
-        localStorage.removeItem('params');  // 退出时清除本地存储的参数
-    });
 </script>
 {% endraw %}
 </html>
