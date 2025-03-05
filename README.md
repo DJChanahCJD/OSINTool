@@ -1,5 +1,34 @@
 ## 项目概述
+
 OSINTool-Web-Linux 是一个自动化爬虫网页，适用于Linux服务器
+
+> 如果你希望在Windows系统使用本项目，可将app.py的主函数改为
+>
+> ```python
+> if __name__ == '__main__':
+>     # 创建自定义的 ProactorServer
+>     class ProactorServer(Server):
+>         def run(self, sockets=None):
+>             # 使用 ProactorEventLoop
+>             loop = ProactorEventLoop()
+>             asyncio.set_event_loop(loop)
+>             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+>             # 运行服务器
+>             asyncio.run(self.serve(sockets=sockets))
+>
+>     # 配置服务器
+>     config = Config(
+>         app=app,
+>         host="127.0.0.1",
+>         port=8080,
+>         reload=False,
+>         workers=1
+>     )
+>     # 使用自定义的 ProactorServer
+>     server = ProactorServer(config=config)
+>     server.run()
+> ```
+
 
 
 ## 快速开始
@@ -13,7 +42,7 @@ pip3 install -r requirements.txt
 playwright install
 ```
 
-### 启动前后端
+### 启动项目
 
 在`根目录`启动：
 
@@ -22,6 +51,7 @@ python app.py
 ```
 
 ## 技术栈
+
 - 本地服务器：FastAPI(venv Python 3.11)
 - 数据爬取：Playwirght, Requests
 - 定时任务：APSchedule
@@ -67,6 +97,7 @@ OSINTOOL
 ### 步骤如下：
 > 修改前记得启用虚拟环境：`source venv/bin/activate`
 1. 创建服务文件 `/etc/systemd/system/osintool.service`，内容如下：
+
 ```ini
 [Unit]
 Description=OSINTool
@@ -82,19 +113,27 @@ Environment=PYTHONUNBUFFERED=1
 [Install]
 WantedBy=multi-user.target
 ```
+
 2. 启用服务：
+
 ```bash
 sudo systemctl enable osintool.service
 ```
+
 3. 启动服务：
+
 ```bash
 sudo systemctl start osintool.service
 ```
+
 4. 重启服务：
+
 ```bash
 sudo systemctl restart osintool.service
 ```
+
 5. 查看服务状态：
+
 ```bash
 sudo systemctl status osintool.service
 ```
@@ -143,5 +182,6 @@ sudo systemctl status osintool.service
 
 
 ## 参考项目
+
 - [八爪鱼采集器](https://www.bazhuayu.com/)
 - [EasySpider](https://www.easyspider.net/)
