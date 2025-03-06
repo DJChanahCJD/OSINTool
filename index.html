@@ -459,12 +459,12 @@
             createTask() {
                 // 清除本地存储的任务ID
                 localStorage.removeItem('currentTaskId');
-                window.location.href = 'edit';
+                window.location.href = '/edit.html';
             },
             editTask(task) {
                 // 存储要编辑的任务ID
                 localStorage.setItem('currentTaskId', JSON.stringify(task.id));
-                window.location.href = `edit?id=${task.id}`;
+                window.location.href = `edit.html?id=${task.id}`;
             },
             async toggleTaskStatus(task) {
                 try {
