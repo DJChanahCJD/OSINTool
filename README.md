@@ -1,6 +1,6 @@
 ## 项目概述
 OSINTool 是一个自动化爬虫客户端，包含一个Flask后端和一个Electron客户端，用于执行和管理爬虫任务。
-
+> [网页端仓库](https://github.com/DJChanahCJD/OSINTool/blob/osintool-web/README.md)
 
 
 ## 快速开始
