@@ -1,4 +1,4 @@
-const baseURL = '/api';
+const baseURL = `http://8.134.56.232:8081/api`;
 
 const api = {
     // 获取所有任务
