@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSINTool</title>
     <style>[v-cloak] { display: none !important;}</style>
-    <link rel="stylesheet" href="{{ url_for('static', path='styles/edit.css') }}">
+    <link rel="stylesheet" href="/styles/edit.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/theme-chalk/index.css">
 </head>
 <body>
-    {% raw %}
     <div id="app" v-cloak>
         <!-- 添加加载指示器 -->
         <div class="page-loading" v-if="!pageReady">
@@ -393,13 +392,11 @@
         </div>
     </transition>
 </div>
-{% endraw %}
 </body>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.3/lib/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
 <script src="{{ url_for('static', path='js/api.js') }}"></script>
-{% raw %}
 <script>
     new Vue({
         el: '#app',
@@ -1042,5 +1039,4 @@
         }
     });
 </script>
-{% endraw %}
 </html>

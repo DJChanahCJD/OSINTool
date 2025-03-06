@@ -1,4 +1,3 @@
-// 创建新文件 backend/static/js.js
 const baseURL = '/api';
 
 const api = {

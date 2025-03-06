@@ -7,3 +7,19 @@ script/
 api.log
 # db.json
 test_db.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node
+node_modules/
+dist/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
