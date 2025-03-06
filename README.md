@@ -1,6 +1,6 @@
 ## 项目概述
 
-OSINTool-Web 是一个自动化爬虫网页，适用于Linux服务器
+**OSINTool-Web** 是一个自动化爬虫网页，适用于Linux服务器
 
 > 如果你希望在Windows系统使用本项目，可将app.py的主函数改为
 >
