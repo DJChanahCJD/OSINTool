@@ -49,7 +49,8 @@ playwright install
 ```bash
 python app.py
 ```
-
+> 默认网页地址：`localhost:8081`
+> 默认api文档地址：`localhost:8081/docs`
 ## 技术栈
 
 - 本地服务器：FastAPI(venv Python 3.11)
